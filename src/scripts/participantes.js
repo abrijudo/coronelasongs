@@ -132,7 +132,7 @@ export async function initParticipantes() {
       // Leer estado actual
       const { data, error } = await supabase
         .from("pulsador")
-        .select("jugando")
+        .select("activado")
         .eq("usuario", myName)
         .maybeSingle();
 
@@ -141,11 +141,11 @@ export async function initParticipantes() {
         return;
       }
 
-      if (data?.jugando === true) {
+      if (data?.activado === true) {
         // Cambiar a FALSE (una sola vez)
         const { error: updError } = await supabase
           .from("pulsador")
-          .update({ jugando: false })
+          .update({ activado: false })
           .eq("usuario", myName);
 
         if (updError) {
