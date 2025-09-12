@@ -117,29 +117,58 @@ export async function initTimer() {
   // botones
   $btnAcierto?.addEventListener("click", async () => {
     if (!currentUser) return;
-    await supabase.from("marcador")
-      .update({ puntos: supabase.sql`puntos + 1` })
-      .eq("jugador", currentUser);
 
-    await supabase.from("pulsador")
+    // +1 al marcador
+    await cambiarPuntosJugador(currentUser, +1);
+
+    // desactivar el jugador actual
+    const { error } = await supabase
+      .from("pulsador")
       .update({ activado: false, turno_inicio: null })
       .eq("usuario", currentUser);
 
+    if (error) {
+      console.error("[Acierto] error:", error);
+      return;
+    }
+
+    // limpiar estado local
+    currentUser = null;
+    startClientMs = null;
+    stopTimer();
+    setTurnName(null);
+
+    // revisar si hay otro jugador esperando
     await fetchEstado();
   });
 
   $btnFallado?.addEventListener("click", async () => {
     if (!currentUser) return;
-    await supabase.from("marcador")
-      .update({ puntos: supabase.sql`puntos - 1` })
-      .eq("jugador", currentUser);
 
-    await supabase.from("pulsador")
+    // -1 al marcador
+    await cambiarPuntosJugador(currentUser, -1);
+
+    // desactivar el jugador actual
+    const { error } = await supabase
+      .from("pulsador")
       .update({ activado: false, turno_inicio: null })
       .eq("usuario", currentUser);
 
+    if (error) {
+      console.error("[Fallado] error:", error);
+      return;
+    }
+
+    // limpiar estado local
+    currentUser = null;
+    startClientMs = null;
+    stopTimer();
+    setTurnName(null);
+
+    // revisar si hay otro jugador esperando
     await fetchEstado();
   });
+
 
   // realtime
   const ch = supabase
