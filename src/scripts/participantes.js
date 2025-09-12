@@ -10,6 +10,7 @@ export async function initParticipantes() {
   const $turn  = document.querySelector("[data-turn-name]");
 
   let myName = null;
+  let timerInterval = null;
 
   function showGate(){ $gate.hidden=false; $root.hidden=true; }
   function showApp(){ $gate.hidden=true; $root.hidden=false; }
@@ -76,52 +77,70 @@ export async function initParticipantes() {
     }
   }
 
+  // ---- Mensaje dinámico ----
+  async function refreshHint(){
+    if (!myName || !$hint) return;
+
+    const { data, error } = await supabase
+      .from("pulsador")
+      .select("activado, fallado")
+      .eq("usuario", myName)
+      .maybeSingle();
+
+    if (error) { console.error("[hint]", error); return; }
+
+    if (data?.activado && !data?.fallado) {
+      $hint.textContent = "⚠️ Ya has pulsado";
+    } else if (data?.activado && data?.fallado) {
+      $hint.textContent = "❌ Has fallado la canción";
+    } else if (!data?.activado && !data?.fallado) {
+      $hint.textContent = "🎵 ¡Adivina la canción!";
+    } else {
+      $hint.textContent = "";
+    }
+  }
+
+  // ---- Pulsar ----
   $btn?.addEventListener("click", async () => {
     if (!myName) return;
 
     const { data, error } = await supabase
       .from("pulsador")
-      .select("id, activado")
+      .select("id, activado, fallado")
       .eq("usuario", myName)
       .maybeSingle();
 
     if (error) { console.error("[pulsar]", error); return; }
 
-    if (data?.activado) {
-      if ($hint) $hint.textContent="⚠️ Ya has pulsado";
+    // Bloqueo según estado actual
+    if (data?.activado && !data?.fallado) {
+      $hint.textContent = "⚠️ Ya has pulsado";
+      return;
+    }
+    if (data?.activado && data?.fallado) {
+      $hint.textContent = "❌ Has fallado la canción";
       return;
     }
 
-    const { error: updError } = await supabase
-      .from("pulsador")
-      .update({
-        activado:true,
-        created_at:new Date().toISOString()
-      })
-      .eq("id", data.id);
+    // Si no está activado → lo activamos
+    if (!data?.activado) {
+      const { error: updError } = await supabase
+        .from("pulsador")
+        .update({
+          activado: true,
+          created_at: new Date().toISOString()
+        })
+        .eq("id", data.id);
 
-    if (updError) {
-      console.error("[pulsar update]", updError);
-    } else {
-      if ($hint) $hint.textContent="Has pulsado ✅";
+      if (updError) {
+        console.error("[pulsar update]", updError);
+      } else {
+        $hint.textContent = "Has pulsado ✅";
+      }
     }
   });
 
-  // Realtime
-  supabase.channel("pp-gate")
-    .on("postgres_changes", { event:"*", schema:"public", table:"pulsador", filter:`usuario=eq.${myName}` }, checkGate)
-    .subscribe();
-
-  supabase.channel("pp-marcador")
-    .on("postgres_changes", { event:"*", schema:"public", table:"marcador" }, refreshMarcador)
-    .subscribe();
-
-  supabase.channel("pp-turno")
-    .on("postgres_changes", { event:"*", schema:"public", table:"pulsador" }, refreshTurno)
-    .subscribe();
-
-  // Timer sincronizado
-  let timerInterval = null;
+  // ---- Timer sincronizado ----
   function startTimerFrom(startTime) {
     const total = 15;
     const start = new Date(startTime).getTime();
@@ -146,9 +165,25 @@ export async function initParticipantes() {
     if ($val) $val.textContent = "15";
   }
 
-  // Init
+  // ---- Realtime ----
+  function subscribeRealtime(){
+    supabase.channel("pp-changes")
+      .on("postgres_changes", { event:"*", schema:"public", table:"pulsador" }, async (payload) => {
+        await refreshTurno();
+        await refreshHint();
+      })
+      .subscribe();
+
+    supabase.channel("pp-marcador")
+      .on("postgres_changes", { event:"*", schema:"public", table:"marcador" }, refreshMarcador)
+      .subscribe();
+  }
+
+  // ---- Init ----
   await resolveName();
   await checkGate();
   await refreshMarcador();
   await refreshTurno();
+  await refreshHint();
+  subscribeRealtime();
 }
