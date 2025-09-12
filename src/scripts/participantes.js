@@ -23,8 +23,7 @@ export async function initParticipantes() {
 
   /* ========== GATE: si jugando=TRUE entras ========== */
   async function checkGate(){
-    if (!myName) await resolveName();
-    if (!myName) { showGate(); return; }
+    if (!myName) return showGate();
 
     const { data, error } = await supabase
       .from("pulsador")
@@ -66,6 +65,7 @@ export async function initParticipantes() {
       .from("pulsador")
       .select("usuario, activado, jugando, created_at")
       .eq("jugando", true)
+      .eq("activado", true)
       .order("created_at", { ascending:true })
       .limit(1);
 
@@ -86,6 +86,11 @@ export async function initParticipantes() {
 
     if (error) { console.error("[pulsar]", error); return; }
 
+    if (!data) {
+      if ($hint) $hint.textContent="⚠️ No estás en la lista de jugadores";
+      return;
+    }
+
     if (data?.activado) {
       if ($hint) $hint.textContent="Ya has pulsado";
       return;
@@ -104,26 +109,36 @@ export async function initParticipantes() {
   });
 
   /* ========== Subscriptions realtime ========== */
-  supabase.channel("pp-gate")
-    .on("postgres_changes", { event:"*", schema:"public", table:"pulsador", filter:`usuario=eq.${myName}` }, checkGate)
-    .subscribe();
+  function setupRealtime(){
+    supabase.channel("pp-gate")
+      .on("postgres_changes", { event:"*", schema:"public", table:"pulsador", filter:`usuario=eq.${myName}` }, checkGate)
+      .subscribe();
 
-  supabase.channel("pp-marcador")
-    .on("postgres_changes", { event:"*", schema:"public", table:"marcador" }, refreshMarcador)
-    .subscribe();
+    supabase.channel("pp-marcador")
+      .on("postgres_changes", { event:"*", schema:"public", table:"marcador" }, refreshMarcador)
+      .subscribe();
 
-  supabase.channel("pp-turno")
-    .on("postgres_changes", { event:"*", schema:"public", table:"pulsador" }, refreshTurno)
-    .subscribe();
+    supabase.channel("pp-turno")
+      .on("postgres_changes", { event:"*", schema:"public", table:"pulsador" }, refreshTurno)
+      .subscribe();
+  }
 
   /* ========== Polling backup ========== */
-  function startPolling(){ if(!pollId) pollId=setInterval(()=>{ checkGate(); refreshMarcador(); refreshTurno(); },2000); }
+  function startPolling(){ 
+    if(!pollId) pollId=setInterval(()=>{ 
+      checkGate(); 
+      refreshMarcador(); 
+      refreshTurno(); 
+    },2000); 
+  }
   function stopPolling(){ if(pollId){ clearInterval(pollId); pollId=null; } }
 
+  // === Arranque ===
   await resolveName();
   await checkGate();
   await refreshMarcador();
   await refreshTurno();
+  setupRealtime();
   startPolling();
 
   window.addEventListener("online", ()=>{ stopPolling(); checkGate(); refreshMarcador(); refreshTurno(); });
