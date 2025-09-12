@@ -16,6 +16,13 @@ import Timer from "../components/timer.astro";
     <div class="p-divider" aria-hidden="true"></div>
 
     <p class="p-subtitle">
+      Participantes que han fallado: <span id="countFail">0</span>
+    </p>
+    <div id="listFail" class="p-list"></div>
+
+    <div class="p-divider" aria-hidden="true"></div>
+
+    <p class="p-subtitle">
       Participantes que no han pulsado: <span id="countOff">0</span>
     </p>
     <div id="listOff" class="p-list"></div>
@@ -31,10 +38,10 @@ import Timer from "../components/timer.astro";
     <!-- Temporizador -->
     <Timer />
 
-    <!-- Botones de resultado (pulsador.js los gestiona) -->
+    <!-- Botones de resultado -->
     <div id="resultBtns" class="result-btns hidden">
       <button id="btnAcierto" class="p-btn success">✅ Acierto</button>
-      <button id="btnFallado" class="p-btn danger hidden">❌ Fallado</button>
+      <button id="btnFallado" class="p-btn danger">❌ Fallado</button>
     </div>
 
     <button id="resetBtn" class="p-btn reset-btn">Resetear</button>
@@ -57,10 +64,8 @@ import Timer from "../components/timer.astro";
   </div>
 </section>
 
-<!-- Carga de scripts desde /public/scripts (funciona en local y en Vercel) -->
-<script >
+<script>
   import("../scripts/pulsador.js").then(m => m.initPulsador());
-  import("../scripts/timer.js").then(m => m.initTimer());
 </script>
 
 <style>
@@ -143,14 +148,6 @@ import Timer from "../components/timer.astro";
   .result-btns{ grid-template-columns: repeat(2, 1fr); }
 }
 .result-btns .p-btn{ width:100%; }
-
-/* Si está .hidden, mantenemos el hueco para que no “salte” el layout */
-#resultBtns.hidden{
-  display:grid !important;
-  visibility:hidden;
-  opacity:0;
-  pointer-events:none;
-}
 
 /* ====== Turno / Timer ====== */
 .turno{ margin:4px 0 12px; font-weight:800; color:#e2e8f0; text-align:center; }

@@ -2,19 +2,24 @@ import { supabase } from "/src/db/supabase.js";
 
 /**
  * Reglas:
- * - Turno = primer registro con activado=TRUE (ordenado por created_at ASC).
+ * - Turno = primer registro con activado=TRUE y fallado=FALSE (ordenado por created_at ASC).
  * - Mostrar botones Acierto/Fallado cuando haya turno; ocultarlos si no lo hay.
  * - Timer: inicia SOLO cuando empieza un turno o cambia de jugador.
- * - Fallado → reinicia timer si queda otro en cola.
+ * - Fallado → pasa el jugador a lista de fallados (activado=TRUE, fallado=TRUE) y sigue el turno con el siguiente.
  * - Acierto → se resetea todo y timer se para.
+ * - Reset → pone activado=FALSE y fallado=FALSE a todos.
  */
 
 export async function initPulsador() {
   // ---- DOM ----
   const $listOn    = document.getElementById("listOn");
   const $listOff   = document.getElementById("listOff");
+  const $listFail  = document.getElementById("listFail");
+
   const $countOn   = document.getElementById("countOn");
   const $countOff  = document.getElementById("countOff");
+  const $countFail = document.getElementById("countFail");
+
   const $resetBtn  = document.getElementById("resetBtn");
   const $scoreBody = document.getElementById("scoreBody");
   const $turnName  = document.querySelector("[data-turn-name]");
@@ -37,7 +42,7 @@ export async function initPulsador() {
   const show = (el) => el && el.classList.remove("hidden");
   const hide = (el) => el && el.classList.add("hidden");
 
-  const CIRC = 2 * Math.PI * 54; // circunferencia del <circle> del SVG
+  const CIRC = 2 * Math.PI * 54;
   if ($progress) $progress.style.strokeDasharray = String(CIRC);
 
   function paint(remaining, total) {
@@ -98,7 +103,9 @@ export async function initPulsador() {
   }
 
   const esc = (s) =>
-    (s ?? "").toString().replace(/[&<>"']/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[m]));
+    (s ?? "").toString().replace(/[&<>"']/g, (m) => (
+      { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[m]
+    ));
 
   async function cargarMarcador() {
     const { data, error } = await supabase
@@ -121,27 +128,37 @@ export async function initPulsador() {
   async function cargarListas() {
     const { data, error } = await supabase
       .from("pulsador")
-      .select("id, usuario, activado, jugando, created_at")
+      .select("id, usuario, activado, fallado, jugando, created_at")
       .eq("jugando", true)
       .order("created_at", { ascending: true });
 
     if (error) return console.error(error);
 
-    let on = 0, off = 0;
+    let on = 0, off = 0, fail = 0;
     $listOn.innerHTML = "";
     $listOff.innerHTML = "";
+    $listFail.innerHTML = "";
 
     (data || []).forEach((r) => {
       const p = document.createElement("p");
       p.textContent = r.usuario ?? "(sin nombre)";
-      if (r.activado) { $listOn.appendChild(p); on++; }
-      else { $listOff.appendChild(p); off++; }
+
+      if (r.activado && !r.fallado) { 
+        $listOn.appendChild(p); on++; 
+      }
+      else if (r.activado && r.fallado) { 
+        $listFail.appendChild(p); fail++; 
+      }
+      else { 
+        $listOff.appendChild(p); off++; 
+      }
     });
 
     $countOn.textContent = String(on);
     $countOff.textContent = String(off);
+    $countFail.textContent = String(fail);
 
-    const queue = (data || []).filter((r) => r.activado);
+    const queue = (data || []).filter((r) => r.activado && !r.fallado);
     const current = queue.length ? queue[0].usuario : null;
 
     $turnName.textContent = current || "—";
@@ -149,7 +166,6 @@ export async function initPulsador() {
     if (current) show($resultBox);
     else hide($resultBox);
 
-    // Timer: inicia solo si cambia el jugador
     if (current && current !== prevCurrent) {
       startTimer(15);
     }
@@ -168,7 +184,7 @@ export async function initPulsador() {
       if (!current || current === "—") return;
 
       await cambiarPuntosJugador(current, +1);
-      await supabase.from("pulsador").update({ activado: false }).not("id", "is", null);
+      await supabase.from("pulsador").update({ activado: false, fallado: false }).not("id", "is", null);
 
       stopTimer();
       hide($resultBox);
@@ -183,7 +199,7 @@ export async function initPulsador() {
       if (!current || current === "—") return;
 
       await cambiarPuntosJugador(current, -1);
-      await supabase.from("pulsador").update({ activado: false }).eq("usuario", current);
+      await supabase.from("pulsador").update({ fallado: true }).eq("usuario", current);
 
       await cargarListas();
       const hayTurno = ($turnName.textContent.trim() || "—") !== "—";
@@ -195,7 +211,7 @@ export async function initPulsador() {
   $resetBtn?.addEventListener("click", async () => {
     if (busy) return; busy = true;
     try {
-      await supabase.from("pulsador").update({ activado: false }).not("id", "is", null);
+      await supabase.from("pulsador").update({ activado: false, fallado: false }).not("id", "is", null);
       stopTimer();
       hide($resultBox);
       await cargarListas();
