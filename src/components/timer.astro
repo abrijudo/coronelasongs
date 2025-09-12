@@ -11,46 +11,28 @@ export const prerender = false;
 </div>
 
 <style>
-:root { color-scheme: dark; }
+  .timer { position: relative; width: 120px; height: 120px; margin: 0 auto; }
+  .timer.hidden { display: none; }
 
-.timer { 
-  position: relative; 
-  width: 120px; 
-  height: 120px; 
-  margin: 0 auto; 
-}
-.timer.hidden { display: none; }
+  .timer__svg { transform: rotate(-90deg); width: 120px; height: 120px; }
+  .timer__bg { fill: none; stroke: #475569; stroke-width: 10; }
 
-.timer__svg { 
-  transform: rotate(-90deg); 
-  width: 120px; 
-  height: 120px; 
-}
-.timer__bg { 
-  fill: none; 
-  stroke: #1e293b;   /* gris oscuro en lugar de claro */
-  stroke-width: 10; 
-}
+  .timer__progress {
+    fill: none;
+    stroke: #3b82f6;
+    stroke-width: 10;
+    stroke-linecap: round;
+    stroke-dasharray: 339.292;
+    stroke-dashoffset: 0;
+    transition: stroke-dashoffset 1s linear, stroke 200ms ease;
+  }
+  .timer__progress.warning { stroke: #dc2626; }
 
-.timer__progress {
-  fill: none; 
-  stroke: #3b82f6;   /* azul vivo */
-  stroke-width: 10; 
-  stroke-linecap: round;
-  stroke-dasharray: 339.292; 
-  stroke-dashoffset: 0;
-  transition: stroke-dashoffset 1s linear, stroke 200ms ease;
-  filter: drop-shadow(0 2px 6px rgba(0,0,0,.35));
-}
-.timer__progress.warning { stroke: #ef4444; } /* rojo fuerte */
-
-.timer__text {
-  position: absolute; 
-  top: 50%; 
-  left: 50%; 
-  transform: translate(-50%,-50%);
-  font-size: 1.55rem; 
-  font-weight: 800; 
-  color: #f1f5f9;   /* texto claro */
-}
+  .timer__text {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 1.55rem; font-weight: 800;
+    color: #f1f5f9;
+  }
 </style>

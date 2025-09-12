@@ -6,6 +6,7 @@
     "baseUrl": ".",
     "paths": {
       "@db/*": ["src/db/*"],
+      "@/*": ["src/*"],
       "@components/*": ["src/components/*"]
     }
   }
