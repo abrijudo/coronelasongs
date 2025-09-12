@@ -165,40 +165,61 @@ export async function initParticipantes() {
   }
 
   // === BOTÓN PULSAR ===
-  if ($btn) {
-    $btn.addEventListener("click", async () => {
-      if (!myName) return;
+if ($btn) {
+  $btn.addEventListener("click", async () => {
+    if (!myName) return;
 
-      const { data, error } = await supabase
-        .from("pulsador")
-        .select("id, activado")
-        .eq("usuario", myName)
-        .maybeSingle();
+    const { data: row, error } = await supabase
+      .from("pulsador")
+      .select("id, activado")
+      .eq("usuario", myName)
+      .maybeSingle();
 
-      if (error) {
-        console.error("Error al leer estado:", error);
+    if (error && error.code !== "PGRST116") {
+      console.error("[participantes] read:", error);
+      if ($hint) $hint.textContent = "No se pudo pulsar.";
+      return;
+    }
+
+    const nowISO = new Date().toISOString();
+
+    if (row) {
+      if (row.activado) {
+        if ($hint) $hint.textContent = "Ya has pulsado";
         return;
       }
-
-      if (data?.activado === false) {
-        const { error: updError } = await supabase
-          .from("pulsador")
-          .update({
-            activado: true,
-            created_at: new Date().toISOString() // 🔥 guardar hora exacta
-          })
-          .eq("id", data.id);
-
-        if (updError) {
-          console.error("Error al pulsar:", updError);
-        } else {
-          if ($hint) $hint.textContent = "Has pulsado ✅";
-        }
+      // estaba en false → activar y fijar turno_inicio ahora
+      const { error: updErr } = await supabase
+        .from("pulsador")
+        .update({ activado: true, created_at: nowISO, turno_inicio: nowISO })
+        .eq("id", row.id);
+      if (updErr) {
+        console.error("[participantes] update:", updErr);
+        if ($hint) $hint.textContent = "No se pudo pulsar.";
       } else {
-        if ($hint) $hint.textContent = "Ya has pulsado";
+        if ($hint) $hint.textContent = "Has pulsado ✅";
       }
-    });
-  }
+    } else {
+      // no existía fila → crearla activada y con turno_inicio ahora
+      const { error: insErr } = await supabase
+        .from("pulsador")
+        .insert({
+          usuario: myName,
+          activado: true,
+          jugando: true,
+          rol: "user",
+          created_at: nowISO,
+          turno_inicio: nowISO
+        });
+      if (insErr) {
+        console.error("[participantes] insert:", insErr);
+        if ($hint) $hint.textContent = "No se pudo pulsar.";
+      } else {
+        if ($hint) $hint.textContent = "Has pulsado ✅";
+      }
+    }
+  });
+}
 
   // === INIT ===
   await checkGate();
