@@ -135,7 +135,7 @@ export async function initParticipantes() {
       if (updError) {
         console.error("[pulsar update]", updError);
       } else {
-        $hint.textContent = "Has pulsado ✅";
+        $hint.textContent = "⚠️ Ya has pulsado";
       }
     }
   });
