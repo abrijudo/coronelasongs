@@ -1,0 +1,243 @@
+---
+export const prerender = false;
+import Timer from "../components/timer.astro";
+---
+
+<h2 class="p-title">Concursantes</h2>
+
+<section class="p-grid">
+  <!-- Columna 1: Listas -->
+  <div class="p-card">
+    <p class="p-subtitle">
+      Participantes que han pulsado: <span id="countOn">0</span>
+    </p>
+    <div id="listOn" class="p-list"></div>
+
+    <div class="p-divider" aria-hidden="true"></div>
+
+    <p class="p-subtitle">
+      Participantes que no han pulsado: <span id="countOff">0</span>
+    </p>
+    <div id="listOff" class="p-list"></div>
+  </div>
+
+  <!-- Columna 2: Turno + Timer + Reset -->
+  <div class="p-card p-center">
+    <div class="turno">
+      <span class="turno__label">Turno de:</span>
+      <span class="turno__name" data-turn-name>—</span>
+    </div>
+
+    <Timer />
+
+    <div id="resultBtns" class="result-btns hidden">
+      <button id="btnAcierto" class="p-btn success">✅ Acierto</button>
+      <button id="btnFallado" class="p-btn danger hidden">❌ Fallado</button>
+    </div>
+
+    <button id="resetBtn" class="p-btn reset-btn">Resetear</button>
+  </div>
+
+  <!-- Columna 3: Marcador -->
+  <div class="p-card p-center score-card">
+    <h3 class="score-title">Marcador</h3>
+    <table class="score-table" aria-label="Marcador">
+      <thead>
+        <tr>
+          <th>JUGADOR</th>
+          <th>PUNTOS</th>
+        </tr>
+      </thead>
+      <tbody id="scoreBody">
+        <tr><td class="empty" colspan="2">Cargando…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<style>
+/* ====== Solo estilos del componente ====== */
+.p-title{
+  text-align:center;
+  color:#355187;
+  font-size:2.2rem;
+  margin:24px 0 18px;
+  font-weight:800;
+}
+
+/* ====== Fila principal (Listas | Timer/Reset | Marcador) ====== */
+.p-grid{
+  max-width:1100px;
+  margin:0 auto 64px;
+  display:grid;
+  gap:24px;
+  grid-template-columns: repeat(3, minmax(0, 1fr)); /* 3 columnas iguales */
+  align-items:stretch; /* que todas estiren igual en alto */
+}
+
+@media (max-width: 980px){
+  .p-grid{ grid-template-columns: 1fr; }
+}
+
+/* ====== Tarjetas base ====== */
+.p-card{
+  height: 100%; 
+  background:#fff;
+  border-radius:16px;
+  border:1px solid #e9eef5;
+  box-shadow:0 6px 18px rgba(0,0,0,.06);
+  padding:18px 20px;
+}
+.p-center{ display:flex; flex-direction:column; align-items:center; }
+
+/* ====== Listas ====== */
+.p-subtitle{ margin:0 0 10px; font-weight:700; color:#2f3a56; }
+.p-divider{ height:1px; background:#e5e7eb; margin:12px 0; }
+.p-list{ display:grid; gap:8px; }
+.p-list p{
+  margin:0;
+  padding:8px 12px;
+  background:#f8fafc;
+  border:1px solid #eef2f7;
+  border-left:4px solid #3b5b92;
+  border-radius:8px;
+  font-size:.95rem;
+}
+
+/* ====== BOTONES ====== */
+.p-btn{
+  min-width:0;
+  padding:12px 22px;
+  font-weight:800;
+  border:none;
+  border-radius:12px;
+  background:#0a0e4e;
+  color:#fff;
+  cursor:pointer;
+  transition:transform .12s ease, background-color .15s ease, box-shadow .2s ease, opacity .15s ease;
+  box-shadow:0 10px 22px rgba(10,14,78,.18);
+}
+.p-btn:hover{ background:#111872; transform: translateY(-1px); }
+.p-btn:disabled{ opacity:.65; cursor:not-allowed; }
+.p-btn.success{ background:#15803d; } .p-btn.success:hover{ background:#166534; }
+.p-btn.danger{  background:#b91c1c; } .p-btn.danger:hover{  background:#991b1b; }
+.reset-btn{ margin-top:14px; }
+
+/* ====== CONTENEDOR DE RESULTADOS (evita saltos) ====== */
+.result-btns{
+  margin-top:14px;
+  display:grid;
+  grid-template-columns: 1fr;
+  gap:12px;
+  width:100%;
+  max-width: 440px;
+  min-height:56px;                 /* reserva alto aunque haya 1 botón */
+}
+@media (min-width: 680px){
+  .result-btns{ grid-template-columns: repeat(2, 1fr); }
+}
+.result-btns .p-btn{ width:100%; }
+
+/* Global .hidden suele colapsar. Para el bloque de resultados lo evitamos: */
+#resultBtns.hidden{
+  display:grid !important;         /* mantiene el alto reservado */
+  visibility:hidden;
+  opacity:0;
+  pointer-events:none;
+}
+
+/* ====== TURNO / TEMPORIZADOR ====== */
+.turno{ margin:4px 0 12px; font-weight:800; color:#1f2a44; text-align:center; }
+.turno__label{ opacity:.7; margin-right:.35rem; }
+.turno__name{ letter-spacing:.5px; }
+
+/* Tamaño estable del círculo del timer (funciona con tu <Timer />) */
+.timer,
+.timer svg{
+  width:230px;                     /* <-- ajusta si lo quieres mayor/menor */
+  height:230px;
+}
+.timer{ display:grid; place-items:center; margin:4px 0 14px; }
+.timer__progress{ stroke-linecap:round; transition:stroke-dashoffset .35s ease; }
+#timer-value,[data-timer-value]{
+  font-weight:800;
+  font-size:2.4rem;
+  line-height:1;
+  font-variant-numeric: tabular-nums;   /* números fijos → sin “bailes” */
+  letter-spacing:.5px;
+}
+
+/* ====== MARCADOR (cabecera estable) ====== */
+.score-card{ text-align:center; }
+.score-title{
+  margin:0 0 12px; color:#30415d; font-weight:800; width:100%; text-align:center;
+}
+
+.score-table{
+  width:100%;
+  border-collapse:separate;
+  border-spacing:0 10px;             /* solo vertical */
+  table-layout:fixed;
+}
+
+/* Cabecera como barra continua */
+.score-table thead th{
+  background:#eef2ff;
+  color:#1f2a44;
+  font-weight:900;
+  text-transform:uppercase;
+  font-size:.86rem;
+  letter-spacing:.35px;
+  padding:12px 14px;
+  border-radius:0;
+  white-space:nowrap;
+  text-align:center;
+}
+.score-table thead th:first-child{ border-radius:12px 0 0 12px; }
+.score-table thead th:last-child { border-radius:0 12px 12px 0; }
+
+/* Reparto: nombre flexible, puntos ancho fijo a la derecha */
+.score-table thead th:last-child,
+.score-table tbody td:last-child{
+  width:112px;
+  min-width:112px;
+  text-align:right;
+  font-weight:800;
+  font-variant-numeric: tabular-nums;
+}
+
+.score-table tbody tr{
+  background:#fff;
+  box-shadow:0 6px 18px rgba(17,24,39,.06);
+}
+.score-table tbody td{
+  padding:12px 14px;
+  border-bottom:none;
+  vertical-align:middle;
+  overflow:hidden;
+}
+.score-table tbody td:first-child{
+  border-radius:12px 0 0 12px;
+  text-align:left;
+  text-transform:uppercase;
+  letter-spacing:.4px;
+  color:#0f172a;
+  white-space:nowrap;
+  text-overflow:ellipsis;
+}
+.score-table tbody td:last-child{ border-radius:0 12px 12px 0; color:#111827; }
+
+.score-table .empty{ text-align:center; color:#6b7280; padding:12px; }
+
+@media (max-width: 900px){
+  .score-table thead th{ font-size:.82rem; letter-spacing:.25px; }
+  .score-table thead th:last-child{ min-width:100px; width:100px; }
+}
+
+
+</style>
+
+<script>
+  import("../scripts/pulsador.js").then(mod => mod.initPulsador());
+  import("../scripts/timer.js").then(mod => mod.initTimer());
+</script>

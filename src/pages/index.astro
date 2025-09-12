@@ -1,0 +1,148 @@
+---
+export const prerender = false;
+
+import Layout from '../layouts/Layout.astro';
+import Pulsador from '../components/pulsador.astro';
+import Top from '../components/top.astro';
+import Canciones from '../components/canciones.astro';
+import InsertarCanciones from '../components/insertar-canciones.astro';
+import Perfil from '../components/perfil.astro';
+import Participantes from '../components/participantes.astro';
+
+import { supabaseServer } from '@db/supabaseServer.js';
+
+const supabase = supabaseServer(Astro);
+const { data: { user } } = await supabase.auth.getUser();
+
+const isLoggedIn = !!user;
+
+let isAdmin = false;
+if (isLoggedIn) {
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .maybeSingle();
+
+  isAdmin = (profile?.role ?? 'user') === 'admin';
+}
+---
+
+<Layout>
+  <Top />
+
+  {isLoggedIn ? (
+    <>
+      <!-- Enlace/menú flotante arriba -->
+      <nav class="nav-links">
+        {isAdmin && <a href="/gestion-pagina" class="nav-pill">Gestión de la página</a>}
+      </nav>
+
+      <!-- Contenido con separación suficiente para evitar colisiones -->
+      <main class="page">
+        {isAdmin ? (
+          <>
+            <Perfil />
+            <Canciones />
+            {/*
+            <InsertarCanciones />
+            */}
+            <Pulsador />
+          </>
+        ) : (
+          <>
+            <Perfil />
+            <Participantes />
+          </>
+        )}
+      </main>
+    </>
+  ) : (
+    <main class="page">
+      <div style="display:flex; justify-content:center; margin-top:2rem;">
+        <a class="btn" href="/inicio-sesion">Iniciar sesión</a>
+      </div>
+    </main>
+  )}
+</Layout>
+
+<style>
+/* ====== NAV ====== */
+/* ====== NAV ====== */
+.nav-links{
+  max-width: 950px;
+  /* top / horizontal / bottom */
+  margin: 1rem auto 1.5rem;   /* << separación con el contenido de abajo */
+  padding: 0 1rem;
+  display: flex;
+  gap: .75rem;
+  flex-wrap: wrap;
+}
+
+@media (min-width: 1024px){
+  .nav-links{ margin: 1.25rem auto 2rem; } /* un pelín más de aire en desktop */
+}
+
+
+/* Enlace del nav con aspecto de píldora */
+.nav-links a{
+  background:#fff;
+  border:1px solid #e5e7eb;
+  padding:.6rem 1.1rem;
+  border-radius:999px;
+  color:#0b1060;                 /* texto legible en reposo */
+  font-weight:700;
+  text-decoration:none;
+  box-shadow:0 8px 24px rgba(0,0,0,.07);
+  transition: background .15s ease, color .15s ease,
+              border-color .15s ease, box-shadow .15s ease, transform .15s ease;
+}
+
+.nav-links a:hover,
+.nav-links a:focus-visible{
+  background:#0b1060;            /* fondo oscuro al pasar el ratón */
+  color:#fff;                    /* texto blanco: alto contraste */
+  border-color:#0b1060;
+  box-shadow:0 10px 22px rgba(7,11,74,.28);
+  transform:translateY(-1px);
+  outline:none;
+}
+
+.nav-links a:active{
+  transform:translateY(0);
+  box-shadow:0 6px 14px rgba(7,11,74,.18);
+}
+
+/* ====== LAYOUT PRINCIPAL ====== */
+/* grid simple con hueco entre secciones para que nada colisione */
+main{
+  max-width: 950px;
+  margin: 0 auto;
+  padding: 0 1rem;
+  display: grid;
+  gap: 32px;                     /* << evita que se pegue Canciones con otros bloques */
+}
+@media (min-width: 1024px){
+  main{ gap: 40px; }
+}
+
+/* Previene desbordes raros dentro del grid */
+main > *{ min-width: 0; }
+
+/* ====== BOTÓN GENÉRICO (login, etc.) ====== */
+.btn{
+  display:inline-flex; align-items:center; justify-content:center;
+  background:#070b4a; color:#fff; border:none; border-radius:12px;
+  padding:1rem 1.5rem; font-weight:700; cursor:pointer; min-width:200px;
+  box-shadow:0 6px 18px rgba(7,11,74,.25);
+  transition: transform .15s ease, box-shadow .15s ease, background .15s ease;
+  text-decoration:none;
+}
+.btn:hover{
+  background:#0b1060;
+  transform: translateY(-2px);
+  box-shadow:0 8px 24px rgba(7,11,74,.3);
+}
+.btn:active{ transform: translateY(0); }
+
+</style>

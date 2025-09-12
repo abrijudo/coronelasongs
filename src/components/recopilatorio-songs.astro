@@ -1,0 +1,174 @@
+---
+/* Recopilatorio de canciones (Admin) con filtro por género) */
+---
+<div class="card">
+    <h2 class="text-center mb-4">Recopilatorio de canciones</h2>
+  
+    <div class="toolbar">
+      <div class="filters">
+        <label for="genreSelect">Género:</label>
+        <select id="genreSelect" class="select">
+          <option value="__ALL__">Todos</option>
+        </select>
+      </div>
+  
+      <div class="actions">
+        <button id="refreshBtn" class="btn">Refrescar</button>
+        <span id="status" class="status" aria-live="polite"></span>
+      </div>
+    </div>
+  
+    <div class="table-wrap">
+      <table class="songs-table" aria-describedby="status">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Nombre</th>
+            <th>Género</th>
+            <th>Reproducir</th>
+            <th>Enlace</th>
+          </tr>
+        </thead>
+        <tbody id="songsBody"></tbody>
+      </table>
+      <div id="loading" class="loading" hidden>Cargando…</div>
+    </div>
+  </div>
+  <!-- PAGINADOR -->
+<div class="pager">
+  <button id="prevPage" class="btn-lite" type="button">Anterior</button>
+  <span id="pageInfo" class="page-info">Página 1 / 1</span>
+  <button id="nextPage" class="btn-lite" type="button">Siguiente</button>
+</div>
+  <style>
+    :root {
+      --border: #e5e7eb;
+      --txt: #374151;
+      --muted: #6b7280;
+      --bg: #ffffff;
+      --row-h: 48px;
+      --head-h: 48px;
+    }
+  
+    .toolbar{
+      display:flex;
+      gap:1rem;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom:.75rem;
+      flex-wrap: wrap;
+    }
+  
+    .filters{ display:flex; align-items:center; gap:.5rem; }
+    .filters label{ color:var(--muted); font-size:.95rem; }
+  
+    .select{
+      padding:.5rem .75rem;
+      border:1px solid var(--border);
+      border-radius:8px;
+      background:#fff;
+      min-width: 180px;
+    }
+  
+    .actions{ display:flex; align-items:center; gap:.75rem; }
+    .status { color:var(--muted); font-size:.9rem; }
+  
+    .table-wrap{
+      position:relative;
+      background:var(--bg);
+      border:1px solid var(--border);
+      border-radius:8px;
+      overflow:auto;
+      max-height: calc(var(--head-h) + (10 * var(--row-h))); /* 10 filas + cabecera */
+    }
+  
+    .songs-table{
+      width:100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+  
+    .songs-table th,
+    .songs-table td{
+      padding:10px 12px;
+      border-bottom:1px solid var(--border);
+      color:var(--txt);
+      vertical-align: middle;
+    }
+  
+    .songs-table thead th{
+      position: sticky;
+      top: 0;
+      background: var(--bg);
+      z-index: 1;
+      height: var(--head-h);
+    }
+  
+    .songs-table thead th:nth-child(1){ width: 70px; }
+    .songs-table thead th:nth-child(3){ width: 140px; }
+    .songs-table thead th:nth-child(4){ width: 140px; }
+    .songs-table thead th:nth-child(5){ width: 110px; }
+  
+    .center { text-align:center; }
+  
+    .loading{
+      position:absolute; inset:auto 0 0 0;
+      padding:10px; text-align:center;
+      background:rgba(255,255,255,.85);
+      border-top:1px solid var(--border);
+      color:var(--muted);
+    }
+  
+    /* ===== Estilos GLOBALS para elementos creados por JS ===== */
+    :global(.switch-wrap){
+      display:inline-flex; align-items:center; gap:10px; position:relative; cursor:pointer;
+    }
+    :global(.switch){
+      width:42px; height:22px; background:#d1d5db; border-radius:999px; position:relative; transition:.2s;
+      display:inline-block; vertical-align:middle;
+    }
+    :global(.switch::after){
+      content:""; position:absolute; top:3px; left:3px; width:16px; height:16px; background:#fff; border-radius:999px; transition:.2s;
+    }
+    :global(.switch-wrap input[type="checkbox"]){
+      position:absolute; opacity:0; width:0; height:0; pointer-events:none;
+    }
+    :global(.switch-wrap input[type="checkbox"]:checked + .switch){ background: var(--primary-color, #10b981); }
+    :global(.switch-wrap input[type="checkbox"]:checked + .switch::after){ transform: translateX(20px); }
+    :global(.songs-table a){ text-decoration: underline; }
+
+    .table-wrap{
+  position:relative;
+  background:var(--bg);
+  border:1px solid var(--border);
+  border-radius:8px;
+  overflow:auto;
+  max-height: calc(var(--head-h) + (10 * var(--row-h))); /* 10 filas + cabecera */
+}
+
+/* Paginador */
+.pager{
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  gap:12px;
+  padding:12px 8px 0;
+}
+.page-info{ color:var(--muted); font-size:.92rem; }
+.btn-lite{
+  padding:.55rem .9rem;
+  border:1px solid var(--border);
+  border-radius:8px;
+  background:#f3f4f6;
+  color:#1f2937;
+  font-weight:600;
+  cursor:pointer;
+}
+.btn-lite:hover{ background:#e5e7eb; }
+.btn-lite:disabled{ opacity:.55; cursor:not-allowed; }
+  </style>
+  
+  <script>
+  import("../scripts/recopilatorio-songs.js").then(mod => mod.initRecopilatorioSongs());
+</script>
+  

@@ -1,0 +1,93 @@
+---
+/* Canciones — con integración de login Spotify */
+
+const cookies = Astro.cookies;
+const spotifyToken = cookies.get("spotify_token")?.value ?? null;
+---
+
+<!-- Preconnect ayuda a que cargue antes el embed -->
+<link rel="preconnect" href="https://open.spotify.com">
+<link rel="preconnect" href="https://i.scdn.co">
+
+<div class="card">
+  <h2 class="text-center mb-4">Canciones</h2>
+
+  {spotifyToken ? (
+    <>
+      <div class="form-group">
+        <select id="cancion-select" class="form-control">
+          <option value="__ALL__" selected>Todos</option>
+        </select>
+      </div>
+
+      <!-- Controles aleatorios -->
+      <div class="random-row">
+        <label for="rand-count" class="rand-label">Aleatorio del género actual</label>
+        <div class="rand-input-wrap">
+          <input id="rand-count" type="number" class="rand-input" min="1" value="2" />
+          <button id="randBtn" class="btn rand-btn">Aleatorio</button>
+        </div>
+      </div>
+
+      <div class="player-wrapper">
+        <iframe
+          id="spotify-iframe"
+          src=""
+          width="100%"
+          height="185"
+          frameborder="0"
+          allowtransparency="true"
+          allow="encrypted-media"
+          class="spotify-iframe"
+          loading="lazy"
+          referrerpolicy="no-referrer-when-downgrade"
+        ></iframe>
+      </div>
+
+      <div class="controls mt-3">
+        <button id="prevBtn" class="btn">
+          ⏮ Anterior
+        </button>
+
+        <button id="nextBtn" class="btn">
+          Siguiente ⏭
+        </button>
+      </div>
+    </>
+  ) : (
+    <div class="connect-spotify">
+      <p>Para escuchar canciones completas conecta tu cuenta de Spotify:</p>
+      <a href="/api/login" class="btn">Conectar con Spotify 🎧</a>
+    </div>
+  )}
+</div>
+
+<style>
+  .player-wrapper{margin:1rem 0;border-radius:var(--border-radius);overflow:hidden}
+  .spotify-iframe{border:none;display:block;width:100%;border-radius:var(--border-radius)}
+
+  .controls{display:flex;justify-content:center;gap:1rem;margin-top:1rem}
+  .btn{display:inline-flex;align-items:center;gap:.5rem;background-color:var(--primary-color);color:#fff;border:none;padding:.6rem 1.2rem;border-radius:var(--border-radius);cursor:pointer;transition:var(--transition)}
+  .btn:hover{background-color:var(--accent-color);transform:translateY(-2px)}
+  .btn:disabled{opacity:.6;cursor:not-allowed;transform:none}
+
+  /* Select sin doble flecha */
+  select.form-control{cursor:pointer;appearance:none;-webkit-appearance:none;-moz-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23111' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right .9rem center;background-size:14px 14px;padding-right:2.5rem}
+  select.form-control::-ms-expand{display:none}
+
+  /* Aleatorio */
+  .random-row{display:grid;gap:.5rem;margin:1rem 0 .5rem}
+  .rand-label{font-weight:600;color:var(--text-color);margin-left:2px}
+  .rand-input-wrap{display:flex;gap:.5rem;align-items:stretch}
+  .rand-input{width:90px;border:1px solid #e5e7eb;border-radius:var(--border-radius);padding:.55rem .75rem;font-size:1rem;outline:none;transition:var(--transition)}
+  .rand-input:focus{border-color:var(--primary-color);box-shadow:0 0 0 .2rem rgba(0,5,71,.08)}
+  .rand-btn{white-space:nowrap;font-weight:600;padding-inline:1rem}
+
+  .connect-spotify { text-align:center; padding:2rem; }
+</style>
+
+{spotifyToken && (
+  <script>
+    import("../scripts/canciones.js").then(mod => mod.initCanciones());
+  </script>
+)}

@@ -1,0 +1,97 @@
+---
+export const prerender = false;
+import { initLogin } from "../scripts/login.js";
+
+---
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Iniciar sesión</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    /* Reset básico */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+      min-height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+      padding: 20px;
+    }
+
+    .login-container {
+      width: 100%; max-width: 380px; background: white; border-radius: 24px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1); overflow: hidden;
+      transform: translateY(0); transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+    }
+    .login-container:hover { transform: translateY(-6px); box-shadow: 0 16px 40px rgba(0, 0, 0, 0.15); }
+
+    .login-header { padding: 32px 32px 20px; text-align: center; border-bottom: 1px solid #f0f0f0; }
+    .login-header h2 { font-size: 24px; font-weight: 700; color: #1f2937; margin-bottom: 6px; }
+    .login-header p { font-size: 13px; color: #6b7280; }
+
+    .login-form { padding: 32px; }
+
+    .form-group { margin-bottom: 20px; }
+    .form-group label { display: block; font-size: 12px; font-weight: 500; color: #4b5563; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+
+    .form-group input {
+      width: 100%; padding: 12px 16px; border: 1px solid #d1d5db; border-radius: 14px;
+      font-size: 15px; color: #1f2937; background-color: #f9fafb; transition: all 0.3s ease;
+    }
+    .form-group input:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,.15); background-color: white; }
+
+    .btn-login {
+      width: 100%; padding: 14px; background: linear-gradient(90deg, #3b82f6, #5b86e5);
+      color: white; font-size: 16px; font-weight: 600; border: none; border-radius: 14px;
+      cursor: pointer; transition: all 0.3s ease; box-shadow: 0 4px 12px rgba(59,130,246,.2);
+    }
+    .btn-login:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(59,130,246,.3); }
+    .btn-login:active { transform: translateY(0); }
+    .btn-login[disabled] { opacity: .7; cursor: not-allowed; }
+
+    .login-footer { padding: 20px 32px; background-color: #f9fafb; text-align: center; border-top: 1px solid #f0f0f0; }
+    .login-footer p { font-size: 13px; color: #6b7280; line-height: 1.6; }
+    .login-footer a { color: #3b82f6; font-weight: 500; text-decoration: none; }
+    .login-footer a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+  <div class="login-container">
+    <div class="login-header">
+      <h2>Iniciar sesión</h2>
+      <p>Accede a tu cuenta</p>
+    </div>
+
+    <form class="login-form" method="post" action="/inicio-sesion" novalidate autocomplete="off">
+      <div class="form-group">
+        <label for="correo">Correo electrónico</label>
+        <input type="email" id="correo" name="correo" autocomplete="username" placeholder="tu@email.com" />
+      </div>
+
+      <div class="form-group">
+        <label for="password">Contraseña</label>
+        <input type="password" id="password" name="password" autocomplete="current-password" placeholder="••••••••" />
+      </div>
+
+      <button type="submit" class="btn-login">Iniciar sesión</button>
+    </form>
+
+    <div class="login-footer">
+      <p>¿No tienes cuenta? <a href="/registrar-sesion">Regístrate</a></p>
+    </div>
+  </div>
+
+  <!-- Aquí inicializamos la lógica del login -->
+  <script>
+    import("../scripts/login.js").then(mod => mod.initLogin());
+  </script>
+</body>
+</html>
+
+
+

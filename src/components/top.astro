@@ -1,0 +1,28 @@
+---
+---
+
+<header class="gallinero-header">
+  <h1>CACAREANDO EN EL GALLINERO 🐔</h1>
+</header>
+
+<style>
+  @keyframes pulse {
+    0% {
+      transform: scale(1);
+      filter: drop-shadow(0 0 6px rgba(255, 215, 0, 0.5));
+    }
+    100% {
+      transform: scale(1.05);
+      filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.7));
+    }
+  }
+
+  @media (max-width: 768px) {
+    .gallinero-header h1 {
+      font-size: 1.6rem;
+    }
+    .gallinero-header h1::after {
+      font-size: 1.5rem;
+    }
+  }
+</style>

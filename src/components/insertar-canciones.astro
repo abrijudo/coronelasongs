@@ -1,0 +1,38 @@
+<div class="card">
+    <h2 class="text-center mb-4">Insertar Canción</h2>
+    <form id="cancion-form">
+      <div class="form-group">
+        <label for="nombre">Nombre:</label>
+        <input type="text" id="nombre" class="form-control" autocomplete="off" placeholder="Ej. Canción de ejemplo" required />
+      </div>
+  
+      <div class="form-group">
+        <label for="tipo">Género:</label>
+        <input type="text" id="tipo" class="form-control" autocomplete="off" placeholder="Ej. Pop, Rock, Electrónica..." required />
+      </div>
+  
+      <div class="form-group">
+        <label for="url">URL de Spotify:</label>
+        <input type="url" id="url" class="form-control" autocomplete="off" placeholder="https://open.spotify.com/track/..." required />
+      </div>
+  
+      <button type="submit" class="btn btn-block">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon">
+          <path d="M12 5v14M5 12h14"/>
+        </svg>
+        Insertar Canción
+      </button>
+    </form>
+  </div>
+  
+  <style>
+    .btn-block { display:flex; align-items:center; justify-content:center; gap:.5rem; width:100%; padding:.75rem; }
+    .icon { width:1.2rem; height:1.2rem; stroke-width:2.5px; }
+    .form-control { transition: var(--transition); }
+    .form-control:focus { border-color: var(--primary-color); box-shadow: 0 0 0 .2rem rgba(0,5,71,.1); }
+  </style>
+  
+  <script>
+  import("../scripts/insertar-canciones.js").then(mod => mod.initInsertarCanciones());
+</script>
+  

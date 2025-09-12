@@ -1,0 +1,32 @@
+---
+export const prerender = false;
+---
+
+<div id="timer" class="timer hidden" aria-live="polite">
+  <svg class="timer__svg" viewBox="0 0 120 120" role="img" aria-label="Temporizador">
+    <circle class="timer__bg" cx="60" cy="60" r="54" />
+    <circle class="timer__progress" cx="60" cy="60" r="54" />
+  </svg>
+  <div class="timer__text"><span id="timer-value">15</span>s</div>
+</div>
+
+<style>
+  .timer { position: relative; width: 120px; height: 120px; margin: 0 auto; }
+  .timer.hidden { display: none; }
+
+  .timer__svg { transform: rotate(-90deg); width: 120px; height: 120px; }
+  .timer__bg { fill: none; stroke: #e5e7eb; stroke-width: 10; }
+
+  .timer__progress {
+    fill: none; stroke: #3b5b92; stroke-width: 10; stroke-linecap: round;
+    stroke-dasharray: 339.292; stroke-dashoffset: 0;
+    transition: stroke-dashoffset 1s linear, stroke 200ms ease;
+    filter: drop-shadow(0 2px 6px rgba(0,0,0,.1));
+  }
+  .timer__progress.warning { stroke: #dc2626; }
+
+  .timer__text {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+    font-size: 1.55rem; font-weight: 800; color: #1f2a44;
+  }
+</style>

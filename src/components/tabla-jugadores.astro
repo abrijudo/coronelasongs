@@ -1,0 +1,49 @@
+---
+/** Tabla simple para la tabla `pulsador`.
+ *  Muestra: id, fecha legible, usuario, rol
+ *  Edita:   activado, jugando (checkbox)
+ *  Botón:   Refrescar
+ */
+---
+<div class="card">
+    <h2 class="text-center mb-3">Players</h2>
+  
+    <div style="margin-bottom:.75rem;">
+      <button id="tj-refresh" class="btn">Refrescar</button>
+    </div>
+  
+    <div class="tj-wrap">
+      <table class="tj-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Fecha</th>
+            <th>Usuario</th>
+            <th>Rol</th>
+            <th>Activado</th>
+            <th>Jugando</th>
+          </tr>
+        </thead>
+        <tbody id="tj-body">
+          <tr><td colspan="6" class="tj-center">Cargando…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  
+  <style>
+    .tj-wrap { max-height: 400px; overflow: auto; border:1px solid #eee; border-radius:12px; background:#fff; }
+    .tj-table { width:100%; border-collapse:collapse; }
+    .tj-table thead th {
+      position:sticky; top:0; background:#f8fafc; z-index:1;
+      text-align:left; font-weight:600; color:#374151; padding:10px 12px; border-bottom:1px solid #e5e7eb;
+    }
+    .tj-table tbody td { padding:10px 12px; border-bottom:1px solid #f1f5f9; vertical-align:middle; }
+    .tj-center { text-align:center; color:#6b7280; padding:14px; }
+    .mono { font-variant-numeric: tabular-nums; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  </style>
+  
+  <script>
+  import("../scripts/tabla-jugadores.js").then(mod => mod.initTablaJugadores());
+</script>
+  
