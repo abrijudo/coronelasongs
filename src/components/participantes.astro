@@ -118,7 +118,17 @@ import Timer from "../components/timer.astro";
 .pp-row.me { box-shadow: 0 10px 24px rgba(59,130,246,.5); outline: 2px solid rgba(59,130,246,.4); }
 </style>
 
-<script type="module">
-  import("../scripts/participantes.js").then(m => m.initParticipantes());
+<script>
+  (async () => {
+    const spec = "../scripts/participantes.js";
+    console.log("[participantes.astro] Cargando", spec);
+    try {
+      const m = await import(spec);
+      console.log("[participantes.astro] Cargado OK", m);
+      m.initParticipantes?.();
+    } catch (e) {
+      console.error("[participantes.astro] Error al importar", spec, e);
+    }
+  })();
 </script>
 
