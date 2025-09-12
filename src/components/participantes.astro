@@ -119,6 +119,6 @@ import Timer from "../components/timer.astro";
 </style>
 
 <script type="module">
-  import { initParticipantes } from "/src/scripts/participantes.js";
-  initParticipantes();
+  import("../scripts/participantes.js").then(m => m.initParticipantes());
 </script>
+
