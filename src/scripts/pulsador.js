@@ -57,10 +57,10 @@ export async function initPulsador() {
     if (intervalId) clearInterval(intervalId);
     intervalId = null;
     if ($timer) $timer.classList.add("hidden");
-    if ($value) $value.textContent = "15";
+    if ($value) $value.textContent = "17";
   }
 
-  function startTimer(duration = 15) {
+  function startTimer(duration = 17) {
     stopTimer();
     if ($timer) $timer.classList.remove("hidden");
 
@@ -167,7 +167,7 @@ export async function initPulsador() {
     else hide($resultBox);
 
     if (current && current !== prevCurrent) {
-      startTimer(15);
+      startTimer(17);
     }
     if (!current && prevCurrent) {
       stopTimer();
@@ -203,7 +203,7 @@ export async function initPulsador() {
 
       await cargarListas();
       const hayTurno = ($turnName.textContent.trim() || "—") !== "—";
-      if (hayTurno) startTimer(15);
+      if (hayTurno) startTimer(17);
       else stopTimer();
     } finally { busy = false; }
   });
