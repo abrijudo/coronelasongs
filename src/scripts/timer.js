@@ -1,7 +1,6 @@
-// Temporizador sincronizado basado en created_at
+// Temporizador sincronizado con Supabase
 let intervalId = null;
-let currentTurnUser = null;   // usuario que está en turno
-let currentStartTime = null;  // fecha de inicio del turno (created_at en DB)
+let lastUser = null;
 
 export function initTimer() {
   const $timer = document.getElementById("timer");
@@ -22,38 +21,37 @@ export function initTimer() {
   function stopTimer() {
     if (intervalId) clearInterval(intervalId);
     intervalId = null;
-    currentTurnUser = null;
-    currentStartTime = null;
+    lastUser = null;
     $timer.classList.add("hidden");
+    if ($value) $value.textContent = "15";
   }
 
   /**
-   * Arranca o mantiene el temporizador para el jugador de turno
-   * @param {string} usuarioTurno - nombre del jugador actual
-   * @param {string} startISO - fecha de inicio ISO (created_at)
-   * @param {number} duration - segundos de duración
+   * Inicia un temporizador sincronizado desde `startTime`
+   * - Solo reinicia si cambia el usuario (nuevo turno)
    */
-  function startTimer(usuarioTurno, startISO, duration = 15) {
-    // Si es el mismo usuario en turno y ya teníamos un start, no reiniciar
-    if (usuarioTurno === currentTurnUser && currentStartTime) {
-      return;
-    }
+  function startTimer(user, startTime, duration = 17) {
+    if (!startTime) return;
 
-    // Nuevo turno: reiniciar valores
-    currentTurnUser = usuarioTurno;
-    currentStartTime = new Date(startISO).getTime();
+    // Evita reinicios si el mismo jugador ya tiene turno activo
+    if (lastUser === user && intervalId) return;
+    lastUser = user;
 
     if (intervalId) clearInterval(intervalId);
     $timer.classList.remove("hidden");
 
+    const total = duration;
+    const start = new Date(startTime).getTime();
+
     function tick() {
       const now = Date.now();
-      const elapsed = Math.floor((now - currentStartTime) / 1000);
-      const remaining = duration - elapsed;
+      const elapsed = Math.floor((now - start) / 1000);
+      const remaining = total - elapsed;
 
-      paint(remaining, duration);
-
-      if (remaining <= 0) {
+      if (remaining >= 0) {
+        paint(remaining, total);
+      } else {
+        paint(0, total);
         stopTimer();
       }
     }
@@ -62,7 +60,7 @@ export function initTimer() {
     intervalId = setInterval(tick, 1000);
   }
 
-  // API global
+  // API global para usar desde pulsador.js
   window.startTimer = startTimer;
   window.stopTimer = stopTimer;
 }
