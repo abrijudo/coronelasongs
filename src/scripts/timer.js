@@ -1,5 +1,7 @@
-// Temporizador simple con API global para que lo use pulsador.js
+// Temporizador sincronizado basado en created_at
 let intervalId = null;
+let currentTurnUser = null;   // usuario que está en turno
+let currentStartTime = null;  // fecha de inicio del turno (created_at en DB)
 
 export function initTimer() {
   const $timer = document.getElementById("timer");
@@ -8,7 +10,7 @@ export function initTimer() {
 
   if (!$timer || !$value || !$progress) return;
 
-  const CIRC = 2 * Math.PI * 54; // r = 54 (en el SVG)
+  const CIRC = 2 * Math.PI * 54; // r=54 en el SVG
   $progress.style.strokeDasharray = String(CIRC);
 
   function paint(remaining, total) {
@@ -20,30 +22,44 @@ export function initTimer() {
   function stopTimer() {
     if (intervalId) clearInterval(intervalId);
     intervalId = null;
-    // Ocúltalo cuando no hay turno
+    currentTurnUser = null;
+    currentStartTime = null;
     $timer.classList.add("hidden");
   }
 
-  function startTimer(duration = 15) {
+  /**
+   * Arranca o mantiene el temporizador para el jugador de turno
+   * @param {string} usuarioTurno - nombre del jugador actual
+   * @param {string} startISO - fecha de inicio ISO (created_at)
+   * @param {number} duration - segundos de duración
+   */
+  function startTimer(usuarioTurno, startISO, duration = 15) {
+    // Si es el mismo usuario en turno y ya teníamos un start, no reiniciar
+    if (usuarioTurno === currentTurnUser && currentStartTime) {
+      return;
+    }
+
+    // Nuevo turno: reiniciar valores
+    currentTurnUser = usuarioTurno;
+    currentStartTime = new Date(startISO).getTime();
+
     if (intervalId) clearInterval(intervalId);
     $timer.classList.remove("hidden");
 
-    let remaining = duration;
-    const total = duration;
+    function tick() {
+      const now = Date.now();
+      const elapsed = Math.floor((now - currentStartTime) / 1000);
+      const remaining = duration - elapsed;
 
-    paint(remaining, total);
-    intervalId = setInterval(() => {
-      remaining -= 1;
-      paint(remaining, total);
+      paint(remaining, duration);
 
       if (remaining <= 0) {
-        clearInterval(intervalId);
-        intervalId = null;
-        // Al terminar, lo dejamos visible con 0s o lo ocultamos:
-        // Ocultarlo queda más limpio:
-        $timer.classList.add("hidden");
+        stopTimer();
       }
-    }, 1000);
+    }
+
+    tick();
+    intervalId = setInterval(tick, 1000);
   }
 
   // API global
