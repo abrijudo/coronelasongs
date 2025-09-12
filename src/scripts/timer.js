@@ -11,15 +11,16 @@ export async function initTimer() {
   const $btnAcierto = document.getElementById("btnAcierto") || null;
   const $btnFallado = document.getElementById("btnFallado") || null;
 
-  const TOTAL = 15; // segundos
-  let tick = null;
-  let currentUser = null;
-  let startClientMs = null;
-  let driftMs = 0;
-
+  /* ====== Config ====== */
+  const TOTAL = 15; // segundos de turno
   const R = 54;
   const circleLen = 2 * Math.PI * R;
   $progresses.forEach(c => (c.style.strokeDasharray = String(circleLen)));
+
+  /* ====== Estado local ====== */
+  let tick = null;
+  let currentUser = null;
+  let startClientMs = null;
 
   const setTurnName = (name) => {
     const t = name ? String(name).toUpperCase() : "—";
@@ -89,6 +90,7 @@ export async function initTimer() {
     const activos = (data || []).filter(r => r.activado && r.usuario);
     if (!activos.length) {
       currentUser = null;
+      startClientMs = null;
       setTurnName(null);
       stopTimer();
       return;
@@ -97,11 +99,11 @@ export async function initTimer() {
     const siguiente = activos[0];
     const nuevoUser = siguiente.usuario;
     const nuevoInicio = siguiente.turno_inicio ? new Date(siguiente.turno_inicio) : null;
-
     if (!nuevoInicio) return;
 
-    const nuevoStartClientMs = nuevoInicio.getTime() + driftMs;
+    const nuevoStartClientMs = nuevoInicio.getTime();
 
+    // solo si cambia el usuario o la hora de inicio
     if (currentUser !== nuevoUser || startClientMs !== nuevoStartClientMs) {
       currentUser = nuevoUser;
       startClientMs = nuevoStartClientMs;
@@ -115,15 +117,27 @@ export async function initTimer() {
   // botones
   $btnAcierto?.addEventListener("click", async () => {
     if (!currentUser) return;
-    await supabase.from("marcador").update({ puntos: supabase.rpc("increment", { val: 1 }) }).eq("jugador", currentUser);
-    await supabase.from("pulsador").update({ activado: false, turno_inicio: null }).eq("usuario", currentUser);
+    await supabase.from("marcador")
+      .update({ puntos: supabase.sql`puntos + 1` })
+      .eq("jugador", currentUser);
+
+    await supabase.from("pulsador")
+      .update({ activado: false, turno_inicio: null })
+      .eq("usuario", currentUser);
+
     await fetchEstado();
   });
 
   $btnFallado?.addEventListener("click", async () => {
     if (!currentUser) return;
-    await supabase.from("marcador").update({ puntos: supabase.rpc("increment", { val: -1 }) }).eq("jugador", currentUser);
-    await supabase.from("pulsador").update({ activado: false, turno_inicio: null }).eq("usuario", currentUser);
+    await supabase.from("marcador")
+      .update({ puntos: supabase.sql`puntos - 1` })
+      .eq("jugador", currentUser);
+
+    await supabase.from("pulsador")
+      .update({ activado: false, turno_inicio: null })
+      .eq("usuario", currentUser);
+
     await fetchEstado();
   });
 
