@@ -1,4 +1,5 @@
 import { supabase } from "@db/supabase.js";
+import { initTimer } from "./timer.js";  // ⏱️ import del temporizador
 
 export async function initParticipantes() {
   const $gate = document.getElementById("pp-locked");
@@ -11,6 +12,7 @@ export async function initParticipantes() {
   let myName = null;
   let chGate = null;
   let chMarcador = null;
+  let chActivado = null;
   let pollId = null;
 
   function showGate() {
@@ -30,7 +32,7 @@ export async function initParticipantes() {
     if ($me && myName) $me.textContent = myName;
   }
 
-  // === CONTROL DE GATE ===
+  // === CONTROL DE GATE (jugando) ===
   async function checkGate() {
     if (!myName) { await resolveName(); }
     if (!myName) { showGate(); return; }
@@ -77,7 +79,7 @@ export async function initParticipantes() {
       });
   }
 
-  // === MARCADOR ===
+  // === MARCADOR (tabla marcador) ===
   async function refreshMarcador() {
     if (!$tbody) return;
 
@@ -124,15 +126,52 @@ export async function initParticipantes() {
       });
   }
 
+  // === CONTROL DEL BOTÓN (activado) ===
+  async function checkActivado() {
+    if (!myName) return;
+    const { data, error } = await supabase
+      .from("pulsador")
+      .select("activado")
+      .eq("usuario", myName)
+      .maybeSingle();
+
+    if (error) {
+      console.error("Error leyendo activado:", error);
+      return;
+    }
+
+    if (data?.activado === true) {
+      if ($hint) $hint.textContent = "Ya has pulsado";
+      if ($btn) $btn.disabled = true;
+    } else {
+      if ($hint) $hint.textContent = "";
+      if ($btn) $btn.disabled = false;
+    }
+  }
+
+  async function subscribeActivado() {
+    if (chActivado) supabase.removeChannel(chActivado);
+    if (!myName) return;
+
+    chActivado = supabase
+      .channel("pp-activado")
+      .on("postgres_changes",
+        { event: "*", schema: "public", table: "pulsador", filter: `usuario=eq.${myName}` },
+        checkActivado
+      )
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") checkActivado();
+      });
+  }
+
   // === BOTÓN PULSAR ===
   if ($btn) {
     $btn.addEventListener("click", async () => {
       if (!myName) return;
 
-      // Leer estado actual
       const { data, error } = await supabase
         .from("pulsador")
-        .select("activado")
+        .select("id, activado")
         .eq("usuario", myName)
         .maybeSingle();
 
@@ -141,12 +180,11 @@ export async function initParticipantes() {
         return;
       }
 
-      if (data?.activado === true) {
-        // Cambiar a FALSE (una sola vez)
+      if (data?.activado === false) {
         const { error: updError } = await supabase
           .from("pulsador")
-          .update({ activado: false })
-          .eq("usuario", myName);
+          .update({ activado: true }) // 🔥 esto dispara el timer vía timer.js
+          .eq("id", data.id);
 
         if (updError) {
           console.error("Error al pulsar:", updError);
@@ -154,7 +192,6 @@ export async function initParticipantes() {
           if ($hint) $hint.textContent = "Has pulsado ✅";
         }
       } else {
-        // Ya estaba en FALSE → mostrar aviso
         if ($hint) $hint.textContent = "Ya has pulsado";
       }
     });
@@ -165,12 +202,23 @@ export async function initParticipantes() {
   await subscribeGate();
   await refreshMarcador();
   await subscribeMarcador();
+  await checkActivado();
+  await subscribeActivado();
+
+  // ✅ Inicializa temporizador compartido
+  await initTimer();
 
   window.addEventListener("offline", startPolling);
-  window.addEventListener("online", () => { stopPolling(); subscribeGate(); subscribeMarcador(); });
+  window.addEventListener("online", () => { 
+    stopPolling(); 
+    subscribeGate(); 
+    subscribeMarcador(); 
+    subscribeActivado();
+  });
   window.addEventListener("beforeunload", () => {
     if (chGate) supabase.removeChannel(chGate);
     if (chMarcador) supabase.removeChannel(chMarcador);
+    if (chActivado) supabase.removeChannel(chActivado);
     stopPolling();
   });
 }
