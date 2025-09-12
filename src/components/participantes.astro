@@ -120,8 +120,9 @@ import Timer from "../components/timer.astro";
 .pp-row.me { box-shadow: 0 10px 24px rgba(7,11,74,.12); outline: 2px solid rgba(7,11,74,.08); }
 </style>
 
-<!-- inicialización de la lógica -->
+<!-- ====== COMPUERTA: mostrar/ocultar según 'jugando' ====== -->
 <script type="module">
-  import { initParticipantes } from "/src/scripts/participantes.js";
+  import { initParticipantes } from "../scripts/participantes.js";
   initParticipantes();
 </script>
+
