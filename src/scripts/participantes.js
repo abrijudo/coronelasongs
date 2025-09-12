@@ -8,16 +8,13 @@ export async function initParticipantes() {
   const $me   = document.getElementById("pp-user-name");
   const $tbody = document.getElementById("pp-body");
   const $hint = document.getElementById("pp-hint");
-  const $turnName = document.querySelector("[data-turn-name]");
 
   let myName = null;
   let chGate = null;
   let chMarcador = null;
   let chActivado = null;
-  let chTurno = null;
   let pollId = null;
 
-  /* === Mostrar/Ocultar gate === */
   function showGate() {
     $root.hidden = true;
     $gate.hidden = false;
@@ -35,7 +32,7 @@ export async function initParticipantes() {
     if ($me && myName) $me.textContent = myName;
   }
 
-  /* === CONTROL DE GATE (jugando) === */
+  // === CONTROL DE GATE ===
   async function checkGate() {
     if (!myName) { await resolveName(); }
     if (!myName) { showGate(); return; }
@@ -75,14 +72,14 @@ export async function initParticipantes() {
       )
       .subscribe((status) => {
         if (status === "SUBSCRIBED") stopPolling();
-        if (["TIMED_OUT","CHANNEL_ERROR","CLOSED"].includes(status)) {
+        if (status === "TIMED_OUT" || status === "CHANNEL_ERROR" || status === "CLOSED") {
           startPolling();
           setTimeout(subscribeGate, 1200);
         }
       });
   }
 
-  /* === MARCADOR === */
+  // === MARCADOR ===
   async function refreshMarcador() {
     if (!$tbody) return;
 
@@ -97,6 +94,7 @@ export async function initParticipantes() {
     }
 
     $tbody.innerHTML = "";
+
     if (!data || data.length === 0) {
       $tbody.innerHTML = `<tr><td colspan="2" class="empty">Sin jugadores</td></tr>`;
       return;
@@ -128,40 +126,7 @@ export async function initParticipantes() {
       });
   }
 
-  /* === TURNO ACTUAL === */
-  async function refreshTurno() {
-    const { data, error } = await supabase
-      .from("pulsador")
-      .select("usuario, created_at")
-      .eq("activado", true)
-      .eq("jugando", true)
-      .order("created_at", { ascending: true })
-      .limit(1);
-
-    if (error) {
-      console.error("Error leyendo turno:", error);
-      return;
-    }
-
-    if (data && data.length > 0) {
-      $turnName.textContent = data[0].usuario;
-    } else {
-      $turnName.textContent = "—";
-    }
-  }
-
-  async function subscribeTurno() {
-    if (chTurno) supabase.removeChannel(chTurno);
-
-    chTurno = supabase
-      .channel("turno-live")
-      .on("postgres_changes", { event: "*", schema: "public", table: "pulsador" }, refreshTurno)
-      .subscribe((status) => {
-        if (status === "SUBSCRIBED") refreshTurno();
-      });
-  }
-
-  /* === CONTROL DEL BOTÓN === */
+  // === CONTROL DEL BOTÓN ===
   async function checkActivado() {
     if (!myName) return;
     const { data, error } = await supabase
@@ -199,7 +164,7 @@ export async function initParticipantes() {
       });
   }
 
-  /* === BOTÓN PULSAR === */
+  // === BOTÓN PULSAR ===
   if ($btn) {
     $btn.addEventListener("click", async () => {
       if (!myName) return;
@@ -220,7 +185,7 @@ export async function initParticipantes() {
           .from("pulsador")
           .update({
             activado: true,
-            created_at: new Date().toISOString()   // ⏱️ actualiza hora exacta
+            created_at: new Date().toISOString() // ⏱️ marca la hora exacta
           })
           .eq("id", data.id);
 
@@ -228,6 +193,7 @@ export async function initParticipantes() {
           console.error("Error al pulsar:", updError);
         } else {
           if ($hint) $hint.textContent = "Has pulsado ✅";
+          // ⛔ Timer no se arranca aquí → lo hace timer.js vía realtime
         }
       } else {
         if ($hint) $hint.textContent = "Ya has pulsado";
@@ -235,15 +201,13 @@ export async function initParticipantes() {
     });
   }
 
-  /* === INIT === */
+  // === INIT ===
   await checkGate();
   await subscribeGate();
   await refreshMarcador();
   await subscribeMarcador();
   await checkActivado();
   await subscribeActivado();
-  await refreshTurno();
-  await subscribeTurno();
 
   await initTimer();
 
@@ -253,13 +217,11 @@ export async function initParticipantes() {
     subscribeGate(); 
     subscribeMarcador(); 
     subscribeActivado();
-    subscribeTurno();
   });
   window.addEventListener("beforeunload", () => {
     if (chGate) supabase.removeChannel(chGate);
     if (chMarcador) supabase.removeChannel(chMarcador);
     if (chActivado) supabase.removeChannel(chActivado);
-    if (chTurno) supabase.removeChannel(chTurno);
     stopPolling();
   });
 }

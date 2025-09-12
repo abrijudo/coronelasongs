@@ -2,211 +2,214 @@
 import { supabase } from "@db/supabase.js";
 
 export async function initTimer() {
-  /* ================== UI refs ================== */
-  const $timers     = Array.from(document.querySelectorAll(".timer"));
-  const $values     = Array.from(document.querySelectorAll("[data-timer-value], #timer-value"));
-  const $progresses = Array.from(document.querySelectorAll(".timer__progress"));
+/* ================== UI refs (soporta varias instancias) ================== */
+const $timers     = Array.from(document.querySelectorAll(".timer"));
+const $values     = Array.from(document.querySelectorAll("[data-timer-value], #timer-value"));
+const $progresses = Array.from(document.querySelectorAll(".timer__progress"));
 
-  const $resultBtns = document.getElementById("resultBtns") || null;
-  const $btnAcierto = document.getElementById("btnAcierto") || null;
-  const $btnFallado = document.getElementById("btnFallado") || null;
+const $resultBtns = document.getElementById("resultBtns") || null;
+const $btnAcierto = document.getElementById("btnAcierto") || null;
+const $btnFallado = document.getElementById("btnFallado") || null;
 
-  const $turnNames = Array.from(document.querySelectorAll("[data-turn-name]"));
-  const setTurnName = (name) => {
-    const t = name ? String(name).toUpperCase() : "—";
-    $turnNames.forEach(el => (el.textContent = t));
-  };
+const $turnNames = Array.from(document.querySelectorAll("[data-turn-name]"));
+const setTurnName = (name) => {
+  const t = name ? String(name).toUpperCase() : "—";
+  $turnNames.forEach(el => (el.textContent = t));
+};
 
-  const show = (el) => { if (el) el.classList.remove("hidden"); };
-  const hide = (el) => { if (el) el.classList.add("hidden"); };
+const show = (el) => { if (el) el.classList.remove("hidden"); };
+const hide = (el) => { if (el) el.classList.add("hidden"); };
 
-  /* ================== Temporizador ================== */
-  const TOTAL = 17;
-  let timeLeft = TOTAL;
-  let tick = null;
+/* ================== Temporizador ================== */
+const TOTAL = 15; // segundos
+let timeLeft = TOTAL;
+let tick = null;
 
-  const isTimerRunning = () => tick !== null;
+const isTimerRunning = () => tick !== null;
 
-  const R = 54;
-  const circleLen = 2 * Math.PI * R;
-  $progresses.forEach(c => (c.style.strokeDasharray = String(circleLen)));
+const R = 54;
+const circleLen = 2 * Math.PI * R;
+$progresses.forEach(c => (c.style.strokeDasharray = String(circleLen)));
 
-  function paintTime(t) {
-    $values.forEach(v => (v.textContent = `${t}`));
-    const offset = circleLen * (1 - t / TOTAL);
-    $progresses.forEach(c => (c.style.strokeDashoffset = String(offset)));
-  }
+function paintTime(t) {
+  $values.forEach(v => (v.textContent = `${t}`));
+  const offset = circleLen * (1 - t / TOTAL);
+  $progresses.forEach(c => (c.style.strokeDashoffset = String(offset)));
+}
 
-  function stopTimer(keepZero = false) {
-    if (tick) clearInterval(tick);
-    tick = null;
-    if (keepZero) {
-      timeLeft = 0;
-      paintTime(0);
-      $timers.forEach(t => show(t));
-    }
-    if ($resultBtns && $btnFallado) $btnFallado.classList.add("hidden");
-  }
-
-  let audioCtx = null;
-  function beep() {
-    try {
-      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
-      const o = audioCtx.createOscillator();
-      const g = audioCtx.createGain();
-      o.type = "sine"; o.frequency.value = 880; g.gain.value = 0.08;
-      o.connect(g); g.connect(audioCtx.destination); o.start();
-      setTimeout(() => o.stop(), 120);
-    } catch {}
-  }
-
-  function startTimer() {
-    if (isTimerRunning()) return;
-
-    if ($resultBtns) {
-      show($resultBtns);
-      if ($btnAcierto) $btnAcierto.classList.remove("hidden");
-      if ($btnFallado) $btnFallado.classList.add("hidden");
-    }
-
-    timeLeft = TOTAL;
-    paintTime(timeLeft);
+function stopTimer(keepZero = false) {
+  if (tick) clearInterval(tick);
+  tick = null;
+  if (keepZero) {
+    timeLeft = 0;
+    paintTime(0);
     $timers.forEach(t => show(t));
+  }
+  if ($resultBtns && $btnFallado) $btnFallado.classList.add("hidden");
+}
 
-    tick = setInterval(() => {
-      timeLeft -= 1;
-      if (timeLeft <= 5 && timeLeft > 0) beep();
-      paintTime(Math.max(timeLeft, 0));
-      if (timeLeft <= 0) {
-        clearInterval(tick);
-        tick = null;
-        if ($resultBtns) {
-          if ($btnAcierto) $btnAcierto.classList.remove("hidden");
-          if ($btnFallado) $btnFallado.classList.remove("hidden");
-        }
+let audioCtx = null;
+function beep() {
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.type = "sine"; o.frequency.value = 880; g.gain.value = 0.08;
+    o.connect(g); g.connect(audioCtx.destination); o.start();
+    setTimeout(() => o.stop(), 120);
+  } catch {}
+}
+
+function startTimer() {
+  if (isTimerRunning()) return;  // ⛔️ evita reinicio si ya corre
+
+  if ($resultBtns) {
+    show($resultBtns);
+    if ($btnAcierto) $btnAcierto.classList.remove("hidden");
+    if ($btnFallado) $btnFallado.classList.add("hidden");
+  }
+
+  timeLeft = TOTAL;
+  paintTime(timeLeft);
+  $timers.forEach(t => show(t));
+
+  tick = setInterval(() => {
+    timeLeft -= 1;
+    if (timeLeft <= 5 && timeLeft > 0) beep();
+    paintTime(Math.max(timeLeft, 0));
+    if (timeLeft <= 0) {
+      clearInterval(tick);
+      tick = null;
+      if ($resultBtns) {
+        if ($btnAcierto) $btnAcierto.classList.remove("hidden");
+        if ($btnFallado) $btnFallado.classList.remove("hidden");
       }
-    }, 1000);
-  }
-
-  /* ================== Marcador helpers ================== */
-  async function cambiarPuntosJugador(nombre, delta) {
-    if (!nombre) return;
-    const { data: row, error } = await supabase
-      .from("marcador")
-      .select("id, puntos")
-      .eq("jugador", nombre)
-      .maybeSingle();
-    if (error && error.code !== "PGRST116") return;
-
-    if (row) {
-      await supabase.from("marcador").update({ puntos: (row.puntos ?? 0) + delta }).eq("id", row.id);
-    } else {
-      await supabase.from("marcador").insert({
-        jugador: nombre, puntos: delta, created_at: new Date().toISOString()
-      });
     }
+  }, 1000);
+}
+
+/* ================== Marcador helpers ================== */
+async function cambiarPuntosJugador(nombre, delta) {
+  if (!nombre) return;
+  const { data: row, error } = await supabase
+    .from("marcador")
+    .select("id, puntos")
+    .eq("jugador", nombre)
+    .maybeSingle();
+  if (error && error.code !== "PGRST116") return;
+
+  if (row) {
+    await supabase.from("marcador").update({ puntos: (row.puntos ?? 0) + delta }).eq("id", row.id);
+  } else {
+    await supabase.from("marcador").insert({
+      jugador: nombre, puntos: delta, created_at: new Date().toISOString()
+    });
   }
+}
 
-  /* ================== Estado sincronizado ================== */
-  let current = null;
-  let prevActiveSet = new Set();
+/* ================== Sincronización con BD ================== */
+let current = null;
+let prevActiveSet = new Set();
 
-  async function fetchEstado() {
-    const { data, error } = await supabase
-      .from("pulsador")
-      .select("usuario, activado, jugando, created_at")
-      .eq("jugando", true)
-      .order("created_at", { ascending: true });
+async function fetchEstado() {
+  const { data, error } = await supabase
+    .from("pulsador")
+    .select("usuario, activado, jugando, created_at")
+    .eq("jugando", true)
+    .order("created_at", { ascending: true });
 
-    if (error) return;
+  if (error) return;
 
-    const activos = (data || []).filter(r => r.activado && r.usuario);
-    const siguiente = activos[0]?.usuario || null;
+  const activos = (data || []).filter(r => r.activado && r.usuario);
+  const siguiente = activos[0]?.usuario || null;
 
-    const currentSet = new Set(activos.map(r => r.usuario));
-    const newly = [...currentSet].filter(u => !prevActiveSet.has(u));
-    prevActiveSet = currentSet;
+  const currentSet = new Set(activos.map(r => r.usuario));
+  const newly = [...currentSet].filter(u => !prevActiveSet.has(u));
+  prevActiveSet = currentSet;
 
-    if (!siguiente) {
-      current = null;
-      setTurnName(null);
-      hide($resultBtns);
-      stopTimer(true);
-      return;
-    }
-
-    if (current !== siguiente || newly.length) {
-      current = siguiente;
-      setTurnName(current);
-      if (!isTimerRunning()) startTimer();
-    }
-  }
-
-  /* ================== Botones resultado ================== */
-  $btnAcierto?.addEventListener("click", async () => {
-    if (!current) return;
-    await cambiarPuntosJugador(current, +1);
-    await supabase.from("pulsador").update({ activado: false }).eq("usuario", current);
-    stopTimer(true);
+  if (!siguiente) {
+    current = null;
     setTurnName(null);
     hide($resultBtns);
-  });
+    stopTimer(true);
+    return;
+  }
 
-  $btnFallado?.addEventListener("click", async () => {
-    if (!current) return;
-    await cambiarPuntosJugador(current, -1);
-    await supabase.from("pulsador").update({ activado: false }).eq("usuario", current);
-  
-    // ⚡ comprobar si queda alguien activado
-    const { data, error } = await supabase
-      .from("pulsador")
-      .select("usuario")
-      .eq("activado", true)
-      .eq("jugando", true)
-      .order("created_at", { ascending: true });
-  
-    if (error) {
-      console.error("Error comprobando siguiente:", error);
-      return;
-    }
-  
-    if (data && data.length > 0) {
-      // 👉 hay otro jugador activado → reiniciamos temporizador
-      current = data[0].usuario;
-      setTurnName(current);
-  
-      stopTimer();   // parar cuenta atrás actual
-      startTimer();  // reiniciar desde TOTAL segundos
-    } else {
-      // 👉 no queda nadie → detener
-      current = null;
-      setTurnName(null);
-      stopTimer(true);
-      hide($resultBtns);
-    }
-  });
-  
+  if (current !== siguiente || newly.length) {
+    current = siguiente;
+    setTurnName(current);
+    if (!isTimerRunning()) startTimer();
+  }
+}
 
-  /* ================== Realtime + Polling ================== */
-  const ch = supabase
-    .channel("pulsador-timer")
-    .on("postgres_changes", { event: "UPDATE", schema: "public", table: "pulsador" }, () => fetchEstado())
-    .on("postgres_changes", { event: "INSERT", schema: "public", table: "pulsador" }, () => fetchEstado())
-    .subscribe();
+/* ================== Botones resultado ================== */
+$btnAcierto?.addEventListener("click", async () => {
+  if (!current) return;
+  await cambiarPuntosJugador(current, +1);
+  await supabase.from("pulsador").update({ activado: false }).not("id", "is", null);
+  stopTimer(true);
+  setTurnName(null);
+  hide($resultBtns);
+});
 
-  let pollId = null;
-  function startPolling(){ if (!pollId) pollId = setInterval(fetchEstado, 1500); }
-  function stopPolling(){ if (pollId){ clearInterval(pollId); pollId = null; } }
-
+$btnFallado?.addEventListener("click", async () => {
+  if (!current) return;
+  await cambiarPuntosJugador(current, -1);
+  await supabase.from("pulsador").update({ activado: false }).eq("usuario", current);
   await fetchEstado();
-  startPolling();
+});
 
-  document.addEventListener("visibilitychange", () => {
-    if (document.hidden) startPolling(); else { fetchEstado(); startPolling(); }
-  });
+/* ================== Realtime + Polling ================== */
+const ch = supabase
+  .channel("pulsador-timer")
+  .on("postgres_changes",
+      { event: "UPDATE", schema: "public", table: "pulsador" },
+      (payload) => {
+        const was = !!payload.old?.activado;
+        const now = !!payload.new?.activado;
+        const playing = payload.new?.jugando ?? true;
+        const name = payload.new?.usuario || null;
+        if (!was && now && playing && name) {
+          if (!isTimerRunning()) {
+            current = name;
+            setTurnName(name);
+            startTimer();
+          }
+        } else {
+          fetchEstado();
+        }
+      })
+  .on("postgres_changes",
+      { event: "INSERT", schema: "public", table: "pulsador" },
+      (payload) => {
+        const name = payload.new?.usuario || null;
+        if (payload.new?.activado && (payload.new?.jugando ?? true) && name) {
+          if (!isTimerRunning()) {
+            current = name;
+            setTurnName(name);
+            startTimer();
+          }
+        } else {
+          fetchEstado();
+        }
+      })
+  .subscribe();
 
-  window.addEventListener("beforeunload", () => {
-    supabase.removeChannel?.(ch);
-    stopPolling();
-  });
+let pollId = null;
+function startPolling(){ if (!pollId) pollId = setInterval(fetchEstado, 1500); }
+function stopPolling(){ if (pollId){ clearInterval(pollId); pollId = null; } }
+
+await fetchEstado();
+startPolling();
+
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) { startPolling(); }
+  else { fetchEstado(); startPolling(); }
+});
+
+window.addEventListener("beforeunload", () => {
+  supabase.removeChannel?.(ch);
+  stopPolling();
+});
+
 }
