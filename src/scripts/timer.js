@@ -143,55 +143,67 @@ export async function initTimer() {
     }
   }
 
-  /* ================== Botones resultado ================== */
-  $btnAcierto?.addEventListener("click", async () => {
-    if (!current) return;
-    await cambiarPuntosJugador(current, +1);
-    await supabase.from("pulsador").update({ activado: false }).eq("usuario", current);
+/* ================== Botones resultado ================== */
+$btnAcierto?.addEventListener("click", async () => {
+  if (!current) return;
 
-    // comprobar siguiente
-    const { data: restantes } = await supabase
-      .from("pulsador")
-      .select("usuario")
-      .eq("jugando", true)
-      .eq("activado", true)
-      .order("created_at", { ascending: true });
+  // Quitar un punto y desactivar al actual
+  await cambiarPuntosJugador(current, +1);
+  await supabase.from("pulsador").update({ activado: false }).eq("usuario", current);
 
-    if (restantes && restantes.length > 0) {
-      current = restantes[0].usuario;
-      setTurnName(current);
-      stopTimer();
-      startTimer();
-    } else {
-      stopTimer(true);
-      setTurnName(null);
-      hide($resultBtns);
-    }
-  });
+  // Buscar si queda alguien más activado
+  const { data: restantes } = await supabase
+    .from("pulsador")
+    .select("usuario")
+    .eq("jugando", true)
+    .eq("activado", true)
+    .order("created_at", { ascending: true });
 
-  $btnFallado?.addEventListener("click", async () => {
-    if (!current) return;
-    await cambiarPuntosJugador(current, -1);
-    await supabase.from("pulsador").update({ activado: false }).eq("usuario", current);
+  if (restantes && restantes.length > 0) {
+    current = restantes[0].usuario;
+    setTurnName(current);
 
-    const { data: restantes } = await supabase
-      .from("pulsador")
-      .select("usuario")
-      .eq("jugando", true)
-      .eq("activado", true)
-      .order("created_at", { ascending: true });
+    // Reinicia el timer limpio
+    stopTimer();
+    startTimer();
+  } else {
+    // Nadie más activado → termina turno
+    stopTimer(true);
+    setTurnName(null);
+    hide($resultBtns);
+  }
+});
 
-    if (restantes && restantes.length > 0) {
-      current = restantes[0].usuario;
-      setTurnName(current);
-      stopTimer();
-      startTimer();
-    } else {
-      stopTimer(true);
-      setTurnName(null);
-      hide($resultBtns);
-    }
-  });
+$btnFallado?.addEventListener("click", async () => {
+  if (!current) return;
+
+  // Restar punto y desactivar al actual
+  await cambiarPuntosJugador(current, -1);
+  await supabase.from("pulsador").update({ activado: false }).eq("usuario", current);
+
+  // Buscar si queda alguien más activado
+  const { data: restantes } = await supabase
+    .from("pulsador")
+    .select("usuario")
+    .eq("jugando", true)
+    .eq("activado", true)
+    .order("created_at", { ascending: true });
+
+  if (restantes && restantes.length > 0) {
+    current = restantes[0].usuario;
+    setTurnName(current);
+
+    // Reinicia el timer limpio
+    stopTimer();
+    startTimer();
+  } else {
+    // Nadie más activado → termina turno
+    stopTimer(true);
+    setTurnName(null);
+    hide($resultBtns);
+  }
+});
+
 
   /* ================== Realtime + Polling ================== */
   const ch = supabase
