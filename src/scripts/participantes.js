@@ -170,7 +170,7 @@ export async function initParticipantes() {
 
       const { data, error } = await supabase
         .from("pulsador")
-        .select("id, activado")
+        .select("activado")
         .eq("usuario", myName)
         .maybeSingle();
 
@@ -183,13 +183,9 @@ export async function initParticipantes() {
         const { error: updError } = await supabase
           .from("pulsador")
           .update({ activado: true })
-          .eq("id", data.id);
+          .eq("usuario", myName);
 
-        if (updError) {
-          console.error("Error al pulsar:", updError);
-        } else {
-          if ($hint) $hint.textContent = "Has pulsado ✅";
-        }
+        if (updError) console.error("Error al pulsar:", updError);
       } else {
         if ($hint) $hint.textContent = "Ya has pulsado";
       }
