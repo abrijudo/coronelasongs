@@ -11,34 +11,7 @@ export async function initParticipantes() {
 
   let myName = null;
   let timerInterval = null;
-
-  // ---- Audio pop ----
-  let audioCtx = null;
-  function initAudio() {
-    if (!audioCtx) {
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    }
-    if (audioCtx.state === "suspended") audioCtx.resume();
-  }
-  function playPop() {
-    try {
-      if (!audioCtx) initAudio();
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      osc.type = "square";
-      osc.frequency.value = 800;
-      gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
-      osc.start();
-      osc.stop(audioCtx.currentTime + 0.15);
-    } catch (e) {
-      console.error("Audio error:", e);
-    }
-  }
-  window.addEventListener("click", initAudio, { once: true });
-  window.addEventListener("keydown", initAudio, { once: true });
+  let lastTurn = null; // para detectar cambio de turno
 
   function showGate(){ $gate.hidden=false; $root.hidden=true; }
   function showApp(){ $gate.hidden=true; $root.hidden=false; }
@@ -52,11 +25,13 @@ export async function initParticipantes() {
   async function checkGate(){
     if (!myName) await resolveName();
     if (!myName) { showGate(); return; }
+
     const { data, error } = await supabase
       .from("pulsador")
       .select("jugando")
       .eq("usuario", myName)
       .maybeSingle();
+
     if (error) { console.error("[gate]", error); showGate(); return; }
     (data?.jugando) ? showApp() : showGate();
   }
@@ -67,7 +42,9 @@ export async function initParticipantes() {
       .from("marcador")
       .select("jugador, puntos")
       .order("puntos", { ascending:false });
+
     if (error) { console.error("[marcador]", error); return; }
+
     $tbody.innerHTML="";
     if (!data?.length){
       $tbody.innerHTML=`<tr><td colspan="2" class="empty">Sin jugadores</td></tr>`;
@@ -85,25 +62,44 @@ export async function initParticipantes() {
   async function refreshTurno(){
     const { data, error } = await supabase
       .from("pulsador")
-      .select("usuario, activado, created_at")
+      .select("usuario, activado, created_at, fallado")
       .eq("activado", true)
+      .eq("fallado", false)                 // solo los que no han fallado
       .order("created_at", { ascending:true })
       .limit(1);
+
     if (error) { console.error("[turno]", error); return; }
     const actual = data?.[0];
-    if ($turn) $turn.textContent = actual?.usuario || "—";
-    if (actual?.created_at) startTimerFrom(actual.created_at);
-    else stopTimer();
+    const currentTurn = actual?.usuario || null;
+
+    if ($turn) $turn.textContent = currentTurn || "—";
+
+    // Sonido solo si cambia y soy yo
+    if (currentTurn && currentTurn !== lastTurn && currentTurn === myName) {
+      playBell();
+    }
+
+    if (actual?.created_at) {
+      startTimerFrom(actual.created_at);
+    } else {
+      stopTimer();
+    }
+
+    lastTurn = currentTurn;
   }
 
+  // ---- Mensaje dinámico ----
   async function refreshHint(){
     if (!myName || !$hint) return;
+
     const { data, error } = await supabase
       .from("pulsador")
       .select("activado, fallado")
       .eq("usuario", myName)
       .maybeSingle();
+
     if (error) { console.error("[hint]", error); return; }
+
     if (data?.activado && !data?.fallado) {
       $hint.textContent = "⚠️ Ya has pulsado";
     } else if (data?.activado && data?.fallado) {
@@ -115,14 +111,18 @@ export async function initParticipantes() {
     }
   }
 
+  // ---- Pulsar ----
   $btn?.addEventListener("click", async () => {
     if (!myName) return;
+
     const { data, error } = await supabase
       .from("pulsador")
       .select("id, activado, fallado")
       .eq("usuario", myName)
       .maybeSingle();
+
     if (error) { console.error("[pulsar]", error); return; }
+
     if (data?.activado && !data?.fallado) {
       $hint.textContent = "⚠️ Ya has pulsado";
       return;
@@ -131,14 +131,17 @@ export async function initParticipantes() {
       $hint.textContent = "❌ Has fallado la canción";
       return;
     }
+
     if (!data?.activado) {
       const { error: updError } = await supabase
         .from("pulsador")
         .update({
           activado: true,
-          created_at: new Date().toISOString()
+          created_at: new Date().toISOString(),
+          fallado: false
         })
         .eq("id", data.id);
+
       if (updError) {
         console.error("[pulsar update]", updError);
       } else {
@@ -147,10 +150,12 @@ export async function initParticipantes() {
     }
   });
 
+  // ---- Timer sincronizado ----
   function startTimerFrom(startTime) {
     const total = 15;
     const start = new Date(startTime).getTime();
     stopTimer();
+
     function tick() {
       const now = Date.now();
       const elapsed = Math.floor((now - start) / 1000);
@@ -162,6 +167,7 @@ export async function initParticipantes() {
     tick();
     timerInterval = setInterval(tick, 1000);
   }
+
   function stopTimer() {
     if (timerInterval) clearInterval(timerInterval);
     timerInterval = null;
@@ -169,42 +175,35 @@ export async function initParticipantes() {
     if ($val) $val.textContent = "15";
   }
 
-// ---- Realtime ----
-function subscribeRealtime(){
-  // Cambios generales en pulsador → refrescar turno, hint, marcador y pop
-  supabase.channel("pp-changes")
-    .on("postgres_changes", { event:"*", schema:"public", table:"pulsador" }, async (payload) => {
-      await refreshTurno();
-      await refreshHint();
-      await refreshMarcador();
+  // ---- Sonido agradable ----
+  function playBell() {
+    const ctx = new AudioContext();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
 
-      // pop si activado pasa a true
-      if (payload.new?.activado && !payload.old?.activado) {
-        playPop();
-      }
-    })
-    .subscribe();
+    osc.type = "sine";
+    osc.frequency.value = 880; // tono agradable agudo
+    gain.gain.setValueAtTime(0.15, ctx.currentTime); // volumen bajo
 
-  // Cambios SOLO del usuario actual → comprobar gate
-  if (myName) {
-    supabase.channel("pp-gate")
-      .on("postgres_changes", {
-        event:"*",
-        schema:"public",
-        table:"pulsador",
-        filter:`usuario=eq.${myName}`
-      }, async () => {
-        await checkGate(); // esto muestra u oculta la app automáticamente
-      })
-      .subscribe();
+    osc.connect(gain).connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.3); // corto
   }
 
-  // Cambios en marcador
-  supabase.channel("pp-marcador")
-    .on("postgres_changes", { event:"*", schema:"public", table:"marcador" }, refreshMarcador)
-    .subscribe();
-}
+  // ---- Realtime ----
+  function subscribeRealtime(){
+    supabase.channel("pp-changes")
+      .on("postgres_changes", { event:"*", schema:"public", table:"pulsador" }, async () => {
+        await refreshTurno();
+        await refreshHint();
+        await checkGate();
+      })
+      .subscribe();
 
+    supabase.channel("pp-marcador")
+      .on("postgres_changes", { event:"*", schema:"public", table:"marcador" }, refreshMarcador)
+      .subscribe();
+  }
 
   // ---- Init ----
   await resolveName();
