@@ -118,16 +118,18 @@ export async function initTimer() {
       .select("usuario, activado, jugando, created_at")
       .eq("jugando", true)
       .order("created_at", { ascending: true });
-
+  
     if (error) return;
-
+  
     const activos = (data || []).filter(r => r.activado && r.usuario);
     const siguiente = activos[0]?.usuario || null;
-
+  
+    // set para detectar nuevas activaciones (por si no llega realtime)
     const currentSet = new Set(activos.map(r => r.usuario));
     const newly = [...currentSet].filter(u => !prevActiveSet.has(u));
     prevActiveSet = currentSet;
-
+  
+    // No hay nadie activado → paro y limpio
     if (!siguiente) {
       current = null;
       setTurnName(null);
@@ -135,13 +137,27 @@ export async function initTimer() {
       stopTimer(true);
       return;
     }
-
-    if (current !== siguiente || newly.length) {
+  
+    // 👇 CAMBIO CLAVE:
+    // Si cambia el jugador, reinicia SIEMPRE el temporizador para todos los clientes.
+    if (current !== siguiente) {
       current = siguiente;
       setTurnName(current);
-      if (!isTimerRunning()) startTimer();
+      // reinicio “limpio” aunque estuviera corriendo
+      stopTimer();
+      // micro-tick para evitar carreras contra el clearInterval
+      setTimeout(() => startTimer(), 0);
+      return;
+    }
+  
+    // Si no cambió el jugador pero hay nuevos activados y el timer está parado, arráncalo
+    if (newly.length && !isTimerRunning()) {
+      current = siguiente;
+      setTurnName(current);
+      startTimer();
     }
   }
+  
 
 /* ================== Botones resultado ================== */
 $btnAcierto?.addEventListener("click", async () => {
