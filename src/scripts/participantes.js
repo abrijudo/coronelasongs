@@ -6,6 +6,7 @@ export async function initParticipantes() {
   const $btn  = document.getElementById("pp-buzz");
   const $me   = document.getElementById("pp-user-name");
   const $tbody = document.getElementById("pp-body");
+  const $hint = document.getElementById("pp-hint");
 
   let myName = null;
   let chGate = null;
@@ -29,7 +30,7 @@ export async function initParticipantes() {
     if ($me && myName) $me.textContent = myName;
   }
 
-  // === CONTROL DE GATE (tabla pulsador) ===
+  // === CONTROL DE GATE ===
   async function checkGate() {
     if (!myName) { await resolveName(); }
     if (!myName) { showGate(); return; }
@@ -76,7 +77,7 @@ export async function initParticipantes() {
       });
   }
 
-  // === MARCADOR (tabla marcador) ===
+  // === MARCADOR ===
   async function refreshMarcador() {
     if (!$tbody) return;
 
@@ -121,6 +122,42 @@ export async function initParticipantes() {
       .subscribe((status) => {
         if (status === "SUBSCRIBED") refreshMarcador();
       });
+  }
+
+  // === BOTÓN PULSAR ===
+  if ($btn) {
+    $btn.addEventListener("click", async () => {
+      if (!myName) return;
+
+      // Leer estado actual
+      const { data, error } = await supabase
+        .from("pulsador")
+        .select("jugando")
+        .eq("usuario", myName)
+        .maybeSingle();
+
+      if (error) {
+        console.error("Error al leer estado:", error);
+        return;
+      }
+
+      if (data?.jugando === true) {
+        // Cambiar a FALSE (una sola vez)
+        const { error: updError } = await supabase
+          .from("pulsador")
+          .update({ jugando: false })
+          .eq("usuario", myName);
+
+        if (updError) {
+          console.error("Error al pulsar:", updError);
+        } else {
+          if ($hint) $hint.textContent = "Has pulsado ✅";
+        }
+      } else {
+        // Ya estaba en FALSE → mostrar aviso
+        if ($hint) $hint.textContent = "Ya has pulsado";
+      }
+    });
   }
 
   // === INIT ===
