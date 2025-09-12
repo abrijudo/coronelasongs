@@ -53,11 +53,6 @@ const spotifyToken = cookies.get("spotify_token")?.value ?? null;
           Siguiente ⏭
         </button>
       </div>
-      <!-- Control de volumen -->
-      <div class="volume-control">
-        <label for="volumeSlider">🔊 Volumen</label>
-        <input id="volumeSlider" type="range" min="0" max="100" value="50" />
-      </div>
     </>
   ) : (
     <div class="connect-spotify">
