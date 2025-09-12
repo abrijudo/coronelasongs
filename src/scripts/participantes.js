@@ -8,9 +8,13 @@ export async function initParticipantes() {
   const $hint  = document.getElementById("pp-hint");
   const $tbody = document.getElementById("pp-body");
   const $turn  = document.querySelector("[data-turn-name]");
+  const $timer = document.querySelector("#timer-value"); // ⏱️ del componente Timer
 
   let myName = null;
   let pollId = null;
+  let tick = null;
+
+  const TURN_SECONDS = 15; // duración del turno en segundos
 
   function showGate(){ $gate.hidden=false; $root.hidden=true; }
   function showApp(){ $gate.hidden=true; $root.hidden=false; }
@@ -59,7 +63,28 @@ export async function initParticipantes() {
     }
   }
 
-  /* ========== Turno activo (sincronizado) ========== */
+  /* ========== Turno activo + temporizador ========== */
+  function startTimerFrom(createdAt){
+    if (!$timer) return;
+    if (tick) clearInterval(tick);
+
+    const start = new Date(createdAt).getTime();
+    const deadline = start + TURN_SECONDS * 1000;
+
+    function update(){
+      const now = Date.now();
+      const diff = Math.max(0, Math.floor((deadline - now)/1000));
+      $timer.textContent = diff;
+      if (diff <= 0){
+        clearInterval(tick);
+        tick = null;
+      }
+    }
+
+    update();
+    tick = setInterval(update, 1000);
+  }
+
   async function refreshTurno(){
     const { data, error } = await supabase
       .from("pulsador")
@@ -70,8 +95,15 @@ export async function initParticipantes() {
       .limit(1);
 
     if (error) { console.error("[turno]", error); return; }
-    const actual = data?.[0]?.usuario || "—";
-    if ($turn) $turn.textContent = actual;
+
+    const actual = data?.[0] || null;
+    if ($turn) $turn.textContent = actual?.usuario || "—";
+
+    if (actual?.created_at){
+      startTimerFrom(actual.created_at);
+    } else {
+      if ($timer) $timer.textContent = TURN_SECONDS; // reset visual
+    }
   }
 
   /* ========== Pulsar botón ========== */
