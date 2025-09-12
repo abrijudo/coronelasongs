@@ -57,9 +57,9 @@ import Timer from "../components/timer.astro";
 </section>
 
 <!-- Scripts -->
-<script type="module">
-  import("../src/scripts/pulsador.js").then(mod => mod.initPulsador());
-  import("../src/scripts/timer.js").then(mod => mod.initTimer());
+<script>
+   import("../scripts/pulsador.js").then(mod => mod.initPulsador());
+   import("../scripts/timer.js").then(mod => mod.initTimer());
 </script>
 
 <style>
