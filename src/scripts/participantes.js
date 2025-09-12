@@ -1,4 +1,4 @@
-import { supabase } from "@db/supabase.js";
+import { supabase } from "@db/supabase.js"; 
 
 export async function initParticipantes() {
   const $gate  = document.getElementById("pp-locked");
@@ -60,8 +60,8 @@ export async function initParticipantes() {
   async function refreshTurno(){
     const { data, error } = await supabase
       .from("pulsador")
-      .select("usuario, activado, turn_started_at")
-      .eq("jugando", true)
+      .select("usuario, activado, created_at")
+      .eq("activado", true)
       .order("created_at", { ascending:true })
       .limit(1);
 
@@ -69,9 +69,8 @@ export async function initParticipantes() {
     const actual = data?.[0];
     if ($turn) $turn.textContent = actual?.usuario || "—";
 
-    // Timer sincronizado
-    if (actual?.turn_started_at) {
-      startTimerFrom(actual.turn_started_at);
+    if (actual?.created_at) {
+      startTimerFrom(actual.created_at);
     } else {
       stopTimer();
     }
@@ -89,7 +88,7 @@ export async function initParticipantes() {
     if (error) { console.error("[pulsar]", error); return; }
 
     if (data?.activado) {
-      if ($hint) $hint.textContent="Ya has pulsado";
+      if ($hint) $hint.textContent="⚠️ Ya has pulsado";
       return;
     }
 
@@ -97,8 +96,7 @@ export async function initParticipantes() {
       .from("pulsador")
       .update({
         activado:true,
-        created_at:new Date().toISOString(),
-        turn_started_at:new Date().toISOString()
+        created_at:new Date().toISOString()
       })
       .eq("id", data.id);
 
@@ -127,7 +125,7 @@ export async function initParticipantes() {
   function startTimerFrom(startTime) {
     const total = 15;
     const start = new Date(startTime).getTime();
-    stopTimer(); // reinicia cualquier timer viejo
+    stopTimer();
 
     function tick() {
       const now = Date.now();
@@ -140,6 +138,7 @@ export async function initParticipantes() {
     tick();
     timerInterval = setInterval(tick, 1000);
   }
+
   function stopTimer() {
     if (timerInterval) clearInterval(timerInterval);
     timerInterval = null;
