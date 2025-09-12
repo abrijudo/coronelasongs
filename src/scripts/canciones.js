@@ -1,7 +1,6 @@
 // Usar ruta relativa para mejor compatibilidad
 import { supabase } from '@db/supabase.js';
 
-
 export function initCanciones() {
   const ALL = "__ALL__";
 
@@ -26,6 +25,18 @@ export function initCanciones() {
   const randBtn  = document.getElementById("randBtn");
   const randIn   = document.getElementById("rand-count");
 
+  // ---- NUEVO: reset de pulsador ----
+  async function resetPulsador() {
+    try {
+      await supabase
+        .from("pulsador")
+        .update({ activado: false, fallado: false })
+        .not("id", "is", null);
+    } catch (err) {
+      console.error("Error al resetear pulsador:", err);
+    }
+  }
+
   function pickN(arr, n){
     const a = arr.slice();
     n = Math.min(n, a.length);
@@ -41,11 +52,14 @@ export function initCanciones() {
     nextBtn.disabled = currentIndex >= playlist.length - 1;
   }
 
-  function loadTrack(i){
+  async function loadTrack(i){
     if (!playlist[i]) return;
     iframe.src = `https://open.spotify.com/embed/track/${playlist[i].id}?utm_source=generator`;
     currentIndex = i;
     syncButtons();
+
+    // Reiniciamos pulsador al cargar nueva canción
+    await resetPulsador();
   }
 
   function setPlaylist(list){
