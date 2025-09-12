@@ -121,8 +121,8 @@ import Timer from "../components/timer.astro";
 </style>
 
 <!-- ====== COMPUERTA: mostrar/ocultar según 'jugando' ====== -->
-<script type="module">
-  import { initParticipantes } from "../scripts/participantes.js";
-  initParticipantes();
+<script>
+  import("../scripts/participantes.js").then(mod => mod.initParticipantes());
 </script>
+>
 
