@@ -1,5 +1,4 @@
 import { supabase } from "@db/supabase.js";
-import { initTimer } from "./timer.js";  // ⏱️ import del temporizador
 
 export async function initParticipantes() {
   const $gate = document.getElementById("pp-locked");
@@ -183,7 +182,7 @@ export async function initParticipantes() {
       if (data?.activado === false) {
         const { error: updError } = await supabase
           .from("pulsador")
-          .update({ activado: true }) // 🔥 esto dispara el timer vía timer.js
+          .update({ activado: true })
           .eq("id", data.id);
 
         if (updError) {
@@ -204,9 +203,6 @@ export async function initParticipantes() {
   await subscribeMarcador();
   await checkActivado();
   await subscribeActivado();
-
-  // ✅ Inicializa temporizador compartido
-  await initTimer();
 
   window.addEventListener("offline", startPolling);
   window.addEventListener("online", () => { 

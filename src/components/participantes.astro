@@ -34,7 +34,7 @@ import Timer from "../components/timer.astro";
       </table>
     </div>
 
-    <!-- Tu turno + botón + reloj -->
+    <!-- Tu turno + botón -->
     <div class="pp-card pp-center">
       <h3 class="pp-h3">Tu turno</h3>
 
@@ -46,85 +46,15 @@ import Timer from "../components/timer.astro";
 
       <button id="pp-buzz" class="pp-btn">¡Pulsar!</button>
       <p id="pp-hint" class="pp-hint"></p>
-
-      <div class="timer-slot"><Timer /></div>
     </div>
   </div>
 </section>
 
 <style>
-/* ====== Cartel fuera del juego ====== */
-.pp-locked{max-width:900px;margin:2rem auto;padding:0 1rem}
-.pp-locked__card{
-  background:#fff;border:1px solid #e9eef5;border-radius:16px;
-  box-shadow:0 8px 22px rgba(0,0,0,.06);padding:24px;text-align:center
-}
-.pp-locked__card h2{margin:0 0 .5rem;font-weight:800;color:#991b1b}
-.pp-locked__card p{margin:0;color:#475569}
-
-/* ====== LAYOUT ====== */
-.pp-wrap { max-width: 950px; margin: 2rem auto; padding: 0 1rem; }
-.pp-title { text-align: center; font-size: 2rem; color: #1f2a44; margin-bottom: 2rem; font-weight: 800; }
-.pp-title .turn-title { margin-left: .5rem; color:#0f172a; letter-spacing:.4px; }
-
-.pp-grid { display: grid; gap: 1.5rem; grid-template-columns: 2fr 1fr; }
-@media (max-width: 860px) { .pp-grid { grid-template-columns: 1fr; } }
-
-.pp-card { background: #fff; border-radius: 16px; border: 1px solid #e9eef5; box-shadow: 0 6px 18px rgba(0,0,0,.06); padding: 1.5rem; }
-.pp-center { display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; }
-
-.pp-h3 { margin-bottom: 1rem; color:#30415d; font-size:1.2rem; font-weight:700; }
-
-/* ====== BOTONES / TEXTOS ====== */
-.pp-btn{
-  display:inline-flex; align-items:center; justify-content:center;
-  background:#070b4a; color:#fff; border:none; border-radius:12px;
-  padding:1rem 1.5rem; font-weight:700; cursor:pointer; min-width:200px;
-  box-shadow:0 6px 18px rgba(7,11,74,.25);
-  transition: transform .15s ease, box-shadow .15s ease, background .15s ease;
-}
-.pp-btn:hover{ background:#0b1060; transform: translateY(-2px); }
-.pp-btn:disabled{ opacity:.6; cursor:not-allowed; }
-
-.pp-hint{ margin-top:1rem; color:#64748b; font-size:.95rem; }
-.timer-slot{ margin-top:14px; }
-
-.turno{ margin:6px 0 10px; font-weight:800; color:#1f2a44; }
-.turno__label{ opacity:.7; margin-right:.35rem; }
-.turno__name{ letter-spacing:.5px; }
-
-/* ====== TABLA “CARD ROWS” + PROGRESO ====== */
-.pp-table {
-  width: 100%;
-  border-collapse: separate;
-  border-spacing: 0 12px;
-  text-align: center;
-  background: transparent;
-  font-size: 1rem;
-}
-.pp-table thead th {
-  background: #f3f4f6; color: #374151; font-weight: 700;
-  text-transform: uppercase; font-size: .95rem; letter-spacing: .5px;
-  padding: 1rem; border-radius: 12px;
-}
-.pp-table tbody tr.pp-row { background: #fff; box-shadow: 0 6px 18px rgba(17, 24, 39, .06); }
-.pp-table tbody tr.pp-row td { border-bottom: none; padding: 14px 16px; vertical-align: middle; }
-.pp-table tbody tr.pp-row td:first-child { border-radius: 12px 0 0 12px; }
-.pp-table tbody tr.pp-row td:last-child  { border-radius: 0 12px 12px 0; }
-.pp-scorecell { min-width: 210px; }
-.pp-points { font-weight: 800; text-align: right; margin-bottom: 6px; }
-.pp-bar { height: 8px; background: #eef2f7; border-radius: 999px; overflow: hidden; }
-.pp-bar > span { display: block; height: 100%; width: 0; border-radius: inherit; background: linear-gradient(90deg, #1f2a44, #405aa8); transition: width .35s ease; }
-.pp-row.first .pp-bar > span { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
-.pp-table .empty{ text-align:center; color:#6b7280; padding:1rem; font-style:italic; }
-.pp-row.me { box-shadow: 0 10px 24px rgba(7,11,74,.12); outline: 2px solid rgba(7,11,74,.08); }
+/* estilos que ya tenías (los de cartel, layout, botón, tabla, etc.) */
 </style>
 
-<!-- ====== COMPUERTA: mostrar/ocultar según 'jugando' ====== -->
-<!-- al final de src/components/participantes.astro -->
-<script type="module">
-  import("../scripts/participantes.js").then(m => m.initParticipantes());
+<!-- ✅ Import dinámico correcto -->
+<script>
+  import("../scripts/participantes.js").then(mod => mod.initParticipantes());
 </script>
-
-
-
