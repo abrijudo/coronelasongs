@@ -32,7 +32,7 @@ export async function initParticipantes() {
     if ($me && myName) $me.textContent = myName;
   }
 
-  // === CONTROL DE GATE ===
+  // === CONTROL DE GATE (jugando) ===
   async function checkGate() {
     if (!myName) { await resolveName(); }
     if (!myName) { showGate(); return; }
@@ -126,7 +126,7 @@ export async function initParticipantes() {
       });
   }
 
-  // === CONTROL DEL BOTÓN ===
+  // === CONTROL DEL BOTÓN (activado) ===
   async function checkActivado() {
     if (!myName) return;
     const { data, error } = await supabase
@@ -185,7 +185,7 @@ export async function initParticipantes() {
           .from("pulsador")
           .update({
             activado: true,
-            created_at: new Date().toISOString() // ⏱️ marca la hora exacta
+            created_at: new Date().toISOString() // 🔥 guardar hora exacta
           })
           .eq("id", data.id);
 
@@ -193,7 +193,6 @@ export async function initParticipantes() {
           console.error("Error al pulsar:", updError);
         } else {
           if ($hint) $hint.textContent = "Has pulsado ✅";
-          // ⛔ Timer no se arranca aquí → lo hace timer.js vía realtime
         }
       } else {
         if ($hint) $hint.textContent = "Ya has pulsado";
