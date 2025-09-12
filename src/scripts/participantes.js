@@ -8,16 +8,35 @@ export async function initParticipantes() {
   const $hint  = document.getElementById("pp-hint");
   const $tbody = document.getElementById("pp-body");
   const $turn  = document.querySelector("[data-turn-name]");
-  const $timer = document.querySelector("#timer-value"); // ⏱️ del componente Timer
+  const $timer = document.getElementById("timer");
+  const $tval  = document.getElementById("timer-value");
+
+  // 🔥 Botones admin (solo estarán en pulsador.astro)
+  const $btnAcierto = document.getElementById("btnAcierto");
+  const $btnFallado = document.getElementById("btnFallado");
 
   let myName = null;
   let pollId = null;
-  let tick = null;
+  let tick   = null;
+  let timeLeft = 15;
+  let currentUser = null;
 
-  const TURN_SECONDS = 15; // duración del turno en segundos
-
+  /* ===== Helpers ===== */
   function showGate(){ $gate.hidden=false; $root.hidden=true; }
   function showApp(){ $gate.hidden=true; $root.hidden=false; }
+  const paintTime = (t)=>{ if($tval) $tval.textContent=t; };
+  const stopTimer = ()=>{ if(tick){clearInterval(tick);tick=null;} if($timer) $timer.classList.add("hidden"); };
+  const startTimer = ()=>{
+    stopTimer();
+    timeLeft=15;
+    paintTime(timeLeft);
+    if($timer) $timer.classList.remove("hidden");
+    tick=setInterval(()=>{
+      timeLeft--;
+      paintTime(timeLeft);
+      if(timeLeft<=0) stopTimer();
+    },1000);
+  };
 
   async function resolveName(){
     const { data: { user } } = await supabase.auth.getUser();
@@ -25,152 +44,109 @@ export async function initParticipantes() {
     if ($me && myName) $me.textContent = myName;
   }
 
-  /* ========== GATE: si jugando=TRUE entras ========== */
+  /* ===== Gate ===== */
   async function checkGate(){
-    if (!myName) return showGate();
-
-    const { data, error } = await supabase
-      .from("pulsador")
-      .select("jugando")
-      .eq("usuario", myName)
-      .maybeSingle();
-
-    if (error) { console.error("[gate]", error); showGate(); return; }
+    if (!myName) await resolveName();
+    if (!myName) { showGate(); return; }
+    const { data } = await supabase.from("pulsador").select("jugando").eq("usuario", myName).maybeSingle();
     (data?.jugando) ? showApp() : showGate();
   }
 
-  /* ========== Marcador ========== */
+  /* ===== Marcador ===== */
   async function refreshMarcador(){
     if (!$tbody) return;
     const { data, error } = await supabase
-      .from("marcador")
-      .select("jugador, puntos")
-      .order("puntos", { ascending:false });
-
-    if (error) { console.error("[marcador]", error); return; }
-
+      .from("marcador").select("jugador, puntos")
+      .order("puntos",{ascending:false});
+    if (error) return console.error(error);
     $tbody.innerHTML="";
-    if (!data?.length){
-      $tbody.innerHTML=`<tr><td colspan="2" class="empty">Sin jugadores</td></tr>`;
-      return;
-    }
-    for(const row of data){
+    if (!data?.length){ $tbody.innerHTML=`<tr><td colspan="2">Sin jugadores</td></tr>`; return; }
+    data.forEach(r=>{
       const tr=document.createElement("tr");
       tr.className="pp-row";
-      if(row.jugador===myName) tr.classList.add("me");
-      tr.innerHTML=`<td>${row.jugador}</td><td>${row.puntos??0}</td>`;
+      if(r.jugador===myName) tr.classList.add("me");
+      tr.innerHTML=`<td>${r.jugador}</td><td>${r.puntos??0}</td>`;
       $tbody.appendChild(tr);
-    }
+    });
   }
 
-  /* ========== Turno activo + temporizador ========== */
-  function startTimerFrom(createdAt){
-    if (!$timer) return;
-    if (tick) clearInterval(tick);
-
-    const start = new Date(createdAt).getTime();
-    const deadline = start + TURN_SECONDS * 1000;
-
-    function update(){
-      const now = Date.now();
-      const diff = Math.max(0, Math.floor((deadline - now)/1000));
-      $timer.textContent = diff;
-      if (diff <= 0){
-        clearInterval(tick);
-        tick = null;
-      }
-    }
-
-    update();
-    tick = setInterval(update, 1000);
-  }
-
+  /* ===== Turno ===== */
   async function refreshTurno(){
     const { data, error } = await supabase
       .from("pulsador")
       .select("usuario, activado, jugando, created_at")
-      .eq("jugando", true)
-      .eq("activado", true)
-      .order("created_at", { ascending:true })
+      .eq("jugando",true)
+      .eq("activado",true)
+      .order("created_at",{ascending:true})
       .limit(1);
+    if (error) return console.error(error);
 
-    if (error) { console.error("[turno]", error); return; }
+    const next = data?.[0]?.usuario || null;
+    if ($turn) $turn.textContent = next || "—";
 
-    const actual = data?.[0] || null;
-    if ($turn) $turn.textContent = actual?.usuario || "—";
-
-    if (actual?.created_at){
-      startTimerFrom(actual.created_at);
-    } else {
-      if ($timer) $timer.textContent = TURN_SECONDS; // reset visual
+    if(next && next!==currentUser){
+      currentUser=next;
+      startTimer();  // 🔥 arranca o reinicia el timer con nuevo turno
     }
+    if(!next){ currentUser=null; stopTimer(); }
   }
 
-  /* ========== Pulsar botón ========== */
-  $btn?.addEventListener("click", async () => {
+  /* ===== Botón Pulsar (participante) ===== */
+  $btn?.addEventListener("click", async ()=>{
     if (!myName) return;
-
-    const { data, error } = await supabase
-      .from("pulsador")
-      .select("id, activado")
-      .eq("usuario", myName)
-      .maybeSingle();
-
-    if (error) { console.error("[pulsar]", error); return; }
-
-    if (!data) {
-      if ($hint) $hint.textContent="⚠️ No estás en la lista de jugadores";
-      return;
-    }
-
-    if (data?.activado) {
-      if ($hint) $hint.textContent="Ya has pulsado";
-      return;
-    }
-
-    const { error: updError } = await supabase
-      .from("pulsador")
-      .update({ activado:true, created_at:new Date().toISOString() })
-      .eq("id", data.id);
-
-    if (updError) {
-      console.error("[pulsar update]", updError);
-    } else {
-      if ($hint) $hint.textContent="Has pulsado ✅";
-    }
+    const { data } = await supabase.from("pulsador").select("id, activado").eq("usuario",myName).maybeSingle();
+    if (data?.activado){ if($hint) $hint.textContent="Ya has pulsado"; return; }
+    await supabase.from("pulsador").update({activado:true, created_at:new Date().toISOString()}).eq("id",data.id);
+    if($hint) $hint.textContent="Has pulsado ✅";
   });
 
-  /* ========== Subscriptions realtime ========== */
-  function setupRealtime(){
-    supabase.channel("pp-gate")
-      .on("postgres_changes", { event:"*", schema:"public", table:"pulsador", filter:`usuario=eq.${myName}` }, checkGate)
-      .subscribe();
+  /* ===== Botones admin: Acierto / Fallado ===== */
+  $btnAcierto?.addEventListener("click", async ()=>{
+    if (!currentUser) return;
+    // +1 punto
+    await supabase.from("marcador")
+      .upsert({ jugador: currentUser, puntos: 1 }, { onConflict: "jugador" })
+      .select();
+    // Desactivar al jugador actual
+    await supabase.from("pulsador").update({activado:false}).eq("usuario",currentUser);
+    currentUser=null;
+    await refreshTurno();
+  });
 
-    supabase.channel("pp-marcador")
-      .on("postgres_changes", { event:"*", schema:"public", table:"marcador" }, refreshMarcador)
-      .subscribe();
+  $btnFallado?.addEventListener("click", async ()=>{
+    if (!currentUser) return;
+    // -1 punto
+    await supabase.from("marcador")
+      .upsert({ jugador: currentUser, puntos: -1 }, { onConflict: "jugador" })
+      .select();
+    // Desactivar al jugador actual
+    await supabase.from("pulsador").update({activado:false}).eq("usuario",currentUser);
+    currentUser=null;
+    await refreshTurno(); // 🔥 pasa al siguiente turno si lo hay
+  });
 
-    supabase.channel("pp-turno")
-      .on("postgres_changes", { event:"*", schema:"public", table:"pulsador" }, refreshTurno)
-      .subscribe();
-  }
+  /* ===== Subscriptions ===== */
+  supabase.channel("pp-gate")
+    .on("postgres_changes",{event:"*",schema:"public",table:"pulsador",filter:`usuario=eq.${myName}`},checkGate)
+    .subscribe();
 
-  /* ========== Polling backup ========== */
-  function startPolling(){ 
-    if(!pollId) pollId=setInterval(()=>{ 
-      checkGate(); 
-      refreshMarcador(); 
-      refreshTurno(); 
-    },2000); 
-  }
-  function stopPolling(){ if(pollId){ clearInterval(pollId); pollId=null; } }
+  supabase.channel("pp-marcador")
+    .on("postgres_changes",{event:"*",schema:"public",table:"marcador"},refreshMarcador)
+    .subscribe();
 
-  // === Arranque ===
+  supabase.channel("pp-turno")
+    .on("postgres_changes",{event:"*",schema:"public",table:"pulsador"},refreshTurno)
+    .subscribe();
+
+  /* ===== Polling backup ===== */
+  function startPolling(){ if(!pollId) pollId=setInterval(()=>{checkGate();refreshMarcador();refreshTurno();},2000);}
+  function stopPolling(){ if(pollId){clearInterval(pollId);pollId=null;} }
+
+  /* ===== INIT ===== */
   await resolveName();
   await checkGate();
   await refreshMarcador();
   await refreshTurno();
-  setupRealtime();
   startPolling();
 
   window.addEventListener("online", ()=>{ stopPolling(); checkGate(); refreshMarcador(); refreshTurno(); });
