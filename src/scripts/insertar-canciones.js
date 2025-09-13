@@ -1,6 +1,6 @@
 import { supabase } from "@db/supabase.js";
 
-async function initInsertarCanciones() {
+export async function initInsertarCanciones() {
   const form = document.getElementById("cancion-form");
   if (!(form instanceof HTMLFormElement)) return;
 

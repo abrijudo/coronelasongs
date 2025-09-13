@@ -66,4 +66,8 @@
   }
 </style>
 
-<script type="module" src="/src/scripts/insertar-canciones.js"></script>
+<script>
+  import("../scripts/insertar-canciones.js").then(mod => mod.initInsertarCanciones());
+</script>
+
+
