@@ -53,6 +53,10 @@ const spotifyToken = cookies.get("spotify_token")?.value ?? null;
           Siguiente ⏭
         </button>
       </div>
+      <!-- NUEVO -->
+      <div id="song-counter" class="song-counter">
+        0 de 0
+      </div>
     </>
   ) : (
     <div class="connect-spotify">
@@ -85,6 +89,12 @@ const spotifyToken = cookies.get("spotify_token")?.value ?? null;
 
   .connect-spotify { text-align:center; padding:2rem; }
 
+  .song-counter {
+  margin-top: .5rem;
+  text-align: center;
+  font-weight: 600;
+  color: var(--text-color);
+}
 
 </style>
 

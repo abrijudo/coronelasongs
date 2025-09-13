@@ -24,8 +24,9 @@ export function initCanciones() {
   const selectEl = document.getElementById("cancion-select");
   const randBtn  = document.getElementById("randBtn");
   const randIn   = document.getElementById("rand-count");
+  const counterEl = document.getElementById("song-counter"); // 👈 marcador
 
-  // ---- NUEVO: reset de pulsador ----
+  // ---- reset de pulsador ----
   async function resetPulsador() {
     try {
       await supabase
@@ -52,13 +53,21 @@ export function initCanciones() {
     nextBtn.disabled = currentIndex >= playlist.length - 1;
   }
 
+  function updateCounter() {
+    if (!counterEl) return;
+    if (!playlist.length) {
+      counterEl.textContent = "0 de 0";
+    } else {
+      counterEl.textContent = `${currentIndex + 1} de ${playlist.length}`;
+    }
+  }
+
   async function loadTrack(i){
     if (!playlist[i]) return;
     iframe.src = `https://open.spotify.com/embed/track/${playlist[i].id}?utm_source=generator`;
     currentIndex = i;
     syncButtons();
-
-    // Reiniciamos pulsador al cargar nueva canción
+    updateCounter(); // 👈 actualizar marcador
     await resetPulsador();
   }
 
@@ -66,7 +75,10 @@ export function initCanciones() {
     playlist = list;
     currentIndex = 0;
     if (playlist.length) loadTrack(0);
-    else iframe.src = "";
+    else {
+      iframe.src = "";
+      updateCounter();
+    }
   }
 
   async function initData(){
@@ -102,9 +114,11 @@ export function initCanciones() {
     setPlaylist(currentPool);
   }
 
+  // --- eventos ---
   nextBtn?.addEventListener("click", () => {
     if (currentIndex < playlist.length - 1) loadTrack(currentIndex + 1);
   });
+
   prevBtn?.addEventListener("click", () => {
     if (currentIndex > 0) loadTrack(currentIndex - 1);
   });
@@ -118,7 +132,8 @@ export function initCanciones() {
   randBtn?.addEventListener("click", () => {
     let n = parseInt(randIn.value, 10);
     if (!Number.isFinite(n) || n <= 0) n = 1;
-    setPlaylist(pickN(currentPool, n));
+    const list = pickN(currentPool, n);
+    setPlaylist(list); // 👈 aquí se fija el tamaño
   });
 
   initData();
