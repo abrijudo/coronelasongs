@@ -38,4 +38,3 @@ export async function initInsertarCanciones() {
   });
 }
 
-initInsertarCanciones();
