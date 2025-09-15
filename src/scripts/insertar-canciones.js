@@ -20,32 +20,47 @@ function normalizeSpotifyUrl(url) {
   const id = extractSpotifyTrackId(url);
   return id ? `https://open.spotify.com/track/${id}` : String(url || "").trim();
 }
+
 async function fetchSpotifyToken() {
   const res = await fetch("/api/spotify-token");
   if (!res.ok) return null;
   const { token } = await res.json();
   return token || null;
 }
+
 async function fetchPlaylistTracks(playlistId, token) {
   let offset = 0;
   const items = [];
   let skipped = 0;
+
   while (true) {
     const url = `https://api.spotify.com/v1/playlists/${playlistId}/tracks?limit=100&offset=${offset}`;
     const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+
+    // 👇 detectar caducidad del token
+    if (res.status === 401) {
+      alert("❌ Tu sesión de Spotify ha caducado. Inicia sesión de nuevo.");
+      window.location.href = "/api/login"; // ajusta a tu ruta de login
+      return [];
+    }
+
     if (!res.ok) throw new Error("Spotify API error");
     const data = await res.json();
+
     for (const it of data.items || []) {
       if (it && it.track) items.push(it.track);
       else skipped++;
     }
+
     if (data.next) offset += 100;
     else break;
   }
+
   console.log(`✅ Recuperados ${items.length} tracks válidos`);
   if (skipped) console.log(`⚠️ ${skipped} tracks se omitieron`);
   return items;
 }
+
 function chunk(arr, n) {
   return arr.length ? [arr.slice(0, n), ...chunk(arr.slice(n), n)] : [];
 }
