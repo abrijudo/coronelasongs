@@ -1,10 +1,15 @@
-// Usar ruta relativa para mejor compatibilidad
 import { supabase } from '@db/supabase.js';
 
 export function initCanciones() {
   const ALL = "__ALL__";
 
-  // Extraer ID canónico
+  // --- Silenciar warning robustness ---
+  const nativeWarn = console.warn;
+  console.warn = function (...args) {
+    if (typeof args[0] === "string" && args[0].includes("robustness level")) return;
+    nativeWarn.apply(console, args);
+  };
+
   function extractSpotifyTrackId(url) {
     if (!url || typeof url !== "string") return null;
     const clean = url.trim();
@@ -14,7 +19,6 @@ export function initCanciones() {
     return m ? m[1] : null;
   }
 
-  // Normaliza URL a formato único
   function normalizeSpotifyUrl(url) {
     const id = extractSpotifyTrackId(url);
     return id ? `https://open.spotify.com/track/${id}` : String(url || "").trim();
@@ -34,9 +38,8 @@ export function initCanciones() {
   const selectEl = document.getElementById("cancion-select");
   const randBtn  = document.getElementById("randBtn");
   const randIn   = document.getElementById("rand-count");
-  const counterEl = document.getElementById("song-counter"); // 👈 marcador
+  const counterEl = document.getElementById("song-counter");
 
-  // ---- reset de pulsador ----
   async function resetPulsador() {
     try {
       await supabase
@@ -77,7 +80,7 @@ export function initCanciones() {
     iframe.src = `https://open.spotify.com/embed/track/${playlist[i].id}?utm_source=generator`;
     currentIndex = i;
     syncButtons();
-    updateCounter(); // 👈 actualizar marcador
+    updateCounter();
     await resetPulsador();
   }
 
@@ -92,40 +95,44 @@ export function initCanciones() {
   }
 
   async function initData() {
-    const { data, error } = await supabase
-      .from("musica")
-      .select("url, tipo, reproducir")
-      .eq("reproducir", true);
+    let from = 0, pageSize = 500;
+    let rows = [], finished = false;
 
-    if (error) {
-      console.error("Supabase:", error);
-      return;
+    while (!finished) {
+      const { data, error } = await supabase
+        .from("musica")
+        .select("url, tipo, reproducir")
+        .eq("reproducir", true)
+        .range(from, from + pageSize - 1);
+
+      if (error) { console.error(error); break; }
+      if (!data || !data.length) { finished = true; break; }
+
+      rows = rows.concat(data);
+      if (data.length < pageSize) finished = true;
+      from += pageSize;
     }
+
+    console.log("✅ Total canciones cargadas:", rows.length);
 
     allSongs = [];
     byType.clear();
 
-    const seen = new Set(); // 👈 evitar duplicados por URL
-
-    for (const row of (data || [])) {
+    for (const row of rows) {
       const cleanUrl = normalizeSpotifyUrl(row.url);
-      if (seen.has(cleanUrl)) continue; // saltar repetidas
-      seen.add(cleanUrl);
-
       const id = extractSpotifyTrackId(cleanUrl);
       if (!id) continue;
 
       const tipo = row.tipo || "Otros";
-      const song = { id, tipo };
-      allSongs.push(song);
+      const song = { id, tipo, url: cleanUrl };
 
+      allSongs.push(song);
       if (!byType.has(tipo)) byType.set(tipo, []);
       byType.get(tipo).push(song);
     }
 
     types = Array.from(byType.keys()).sort();
 
-    // limpiar opciones previas
     selectEl.innerHTML = "";
     const optAll = document.createElement("option");
     optAll.value = ALL;
@@ -154,7 +161,17 @@ export function initCanciones() {
 
   selectEl?.addEventListener("change", () => {
     const filtro = selectEl.value || ALL;
-    currentPool = (filtro === ALL) ? allSongs : (byType.get(filtro) || []);
+    if (filtro === ALL) {
+      // 👇 Eliminar duplicados SOLO en "Todos"
+      const seen = new Set();
+      currentPool = allSongs.filter(song => {
+        if (seen.has(song.url)) return false;
+        seen.add(song.url);
+        return true;
+      });
+    } else {
+      currentPool = byType.get(filtro) || [];
+    }
     setPlaylist(currentPool);
   });
 
