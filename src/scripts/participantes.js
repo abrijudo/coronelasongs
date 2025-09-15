@@ -62,30 +62,33 @@ export async function initParticipantes() {
   async function refreshTurno(){
     const { data, error } = await supabase
       .from("pulsador")
-      .select("usuario, activado, created_at, fallado")
+      .select("usuario, activado, created_at, fallado, id")
       .eq("activado", true)
-      .eq("fallado", false)                 // solo los que no han fallado
+      .eq("fallado", false)                 
       .order("created_at", { ascending:true })
+      .order("id", { ascending:true }) // desempate si coinciden tiempos
       .limit(1);
 
     if (error) { console.error("[turno]", error); return; }
     const actual = data?.[0];
     const currentTurn = actual?.usuario || null;
 
-    if ($turn) $turn.textContent = currentTurn || "—";
+    // ⚡️ Solo actualizamos si cambia de verdad
+    if (currentTurn !== lastTurn) {
+      if ($turn) $turn.textContent = currentTurn || "—";
 
-    // Sonido solo si cambia y soy yo
-    if (currentTurn && currentTurn !== lastTurn && currentTurn === myName) {
-      playBell();
+      if (currentTurn && currentTurn === myName) {
+        playBell();
+      }
+
+      if (actual?.created_at) {
+        startTimerFrom(actual.created_at);
+      } else {
+        stopTimer();
+      }
+
+      lastTurn = currentTurn;
     }
-
-    if (actual?.created_at) {
-      startTimerFrom(actual.created_at);
-    } else {
-      stopTimer();
-    }
-
-    lastTurn = currentTurn;
   }
 
   // ---- Mensaje dinámico ----
@@ -150,31 +153,6 @@ export async function initParticipantes() {
     }
   });
 
-  // ---- Timer sincronizado ----
-  function startTimerFrom(startTime) {
-    const total = 15;
-    const start = new Date(startTime).getTime();
-    stopTimer();
-
-    function tick() {
-      const now = Date.now();
-      const elapsed = Math.floor((now - start) / 1000);
-      const remaining = total - elapsed;
-      const $val = document.getElementById("timer-value");
-      if ($val) $val.textContent = Math.max(0, remaining);
-      if (remaining <= 0) stopTimer();
-    }
-    tick();
-    timerInterval = setInterval(tick, 1000);
-  }
-
-  function stopTimer() {
-    if (timerInterval) clearInterval(timerInterval);
-    timerInterval = null;
-    const $val = document.getElementById("timer-value");
-    if ($val) $val.textContent = "15";
-  }
-
   // ---- Sonido agradable ----
   function playBell() {
     const ctx = new AudioContext();
@@ -188,6 +166,20 @@ export async function initParticipantes() {
     osc.connect(gain).connect(ctx.destination);
     osc.start();
     osc.stop(ctx.currentTime + 0.3); // corto
+  }
+
+  // ---- Timer ----
+  function startTimerFrom(ts){
+    stopTimer();
+    const start = new Date(ts).getTime();
+    timerInterval = setInterval(() => {
+      const diff = Date.now() - start;
+      // Aquí podrías actualizar un contador en pantalla si quieres
+    }, 1000);
+  }
+  function stopTimer(){
+    if (timerInterval) clearInterval(timerInterval);
+    timerInterval = null;
   }
 
   // ---- Realtime ----
