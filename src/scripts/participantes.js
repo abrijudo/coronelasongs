@@ -1,4 +1,4 @@
-import { supabase } from "@db/supabase.js"; 
+import { supabase } from "@db/supabase.js";
 
 export async function initParticipantes() {
   const $gate  = document.getElementById("pp-locked");
@@ -10,8 +10,23 @@ export async function initParticipantes() {
   const $turn  = document.querySelector("[data-turn-name]");
 
   let myName = null;
-  let timerInterval = null;
-  let lastTurn = null; // para detectar cambio de turno
+  let lastTurn = null;
+
+  // --- Asegura que timer.js esté listo antes de usar window.startTimer
+  let _timerReady = false;
+  async function ensureTimerReady() {
+    if (_timerReady) return true;
+    if (window.startTimer && window.stopTimer) { _timerReady = true; return true; }
+    try {
+      const mod = await import("./timer.js"); // ajusta la ruta si mueves los archivos
+      if (mod?.initTimer) mod.initTimer();
+      _timerReady = !!(window.startTimer && window.stopTimer);
+      return _timerReady;
+    } catch (e) {
+      console.error("[timer] No se pudo cargar timer.js", e);
+      return false;
+    }
+  }
 
   function showGate(){ $gate.hidden=false; $root.hidden=true; }
   function showApp(){ $gate.hidden=true; $root.hidden=false; }
@@ -62,56 +77,28 @@ export async function initParticipantes() {
   async function refreshTurno(){
     const { data, error } = await supabase
       .from("pulsador")
-      .select("usuario, activado, created_at, fallado, id")
+      .select("usuario, turno_inicio, activado, fallado, created_at, id")
       .eq("activado", true)
-      .eq("fallado", false)                 
+      .eq("fallado", false)
       .order("created_at", { ascending:true })
-      .order("id", { ascending:true }) // desempate si coinciden tiempos
+      .order("id", { ascending:true })
       .limit(1);
 
     if (error) { console.error("[turno]", error); return; }
     const actual = data?.[0];
     const currentTurn = actual?.usuario || null;
 
-    // ⚡️ Solo actualizamos si cambia de verdad
-    if (currentTurn !== lastTurn) {
-      if ($turn) $turn.textContent = currentTurn || "—";
+    if ($turn) $turn.textContent = currentTurn || "—";
 
-      if (currentTurn && currentTurn === myName) {
-        playBell();
-      }
-
-      if (actual?.created_at) {
-        startTimerFrom(actual.created_at);
-      } else {
-        stopTimer();
-      }
-
-      lastTurn = currentTurn;
-    }
-  }
-
-  // ---- Mensaje dinámico ----
-  async function refreshHint(){
-    if (!myName || !$hint) return;
-
-    const { data, error } = await supabase
-      .from("pulsador")
-      .select("activado, fallado")
-      .eq("usuario", myName)
-      .maybeSingle();
-
-    if (error) { console.error("[hint]", error); return; }
-
-    if (data?.activado && !data?.fallado) {
-      $hint.textContent = "⚠️ Ya has pulsado";
-    } else if (data?.activado && data?.fallado) {
-      $hint.textContent = "❌ Has fallado la canción";
-    } else if (!data?.activado && !data?.fallado) {
-      $hint.textContent = "🎵 ¡Adivina la canción!";
+    // Siempre re-evaluamos el timer en base a turno_inicio (por si entras tarde o refrescas)
+    await ensureTimerReady();
+    if (actual?.turno_inicio) {
+      window.startTimer(actual.usuario, actual.turno_inicio);
     } else {
-      $hint.textContent = "";
+      if (window.stopTimer) window.stopTimer();
     }
+
+    lastTurn = currentTurn;
   }
 
   // ---- Pulsar ----
@@ -126,68 +113,42 @@ export async function initParticipantes() {
 
     if (error) { console.error("[pulsar]", error); return; }
 
-    if (data?.activado && !data?.fallado) {
-      $hint.textContent = "⚠️ Ya has pulsado";
-      return;
-    }
-    if (data?.activado && data?.fallado) {
-      $hint.textContent = "❌ Has fallado la canción";
+    if (data?.activado) {
+      $hint.textContent = data.fallado
+        ? "❌ Has fallado la canción"
+        : "⚠️ Ya has pulsado";
       return;
     }
 
-    if (!data?.activado) {
-      const { error: updError } = await supabase
-        .from("pulsador")
-        .update({
-          activado: true,
-          created_at: new Date().toISOString(),
-          fallado: false
-        })
-        .eq("id", data.id);
+    // ¿hay turno activo?
+    const { data: turnoActivo } = await supabase
+      .from("pulsador")
+      .select("id")
+      .not("turno_inicio", "is", null)
+      .limit(1);
 
-      if (updError) {
-        console.error("[pulsar update]", updError);
-      } else {
-        $hint.textContent = "⚠️ Ya has pulsado";
-      }
-    }
+    const updateFields = {
+      activado: true,
+      created_at: new Date().toISOString(),
+      fallado: false,
+      // si NO hay turno activo → este jugador lo inicia poniendo hora fin = ahora + 17s
+      ...( (!turnoActivo?.length) ? { turno_inicio: new Date(Date.now() + 17000).toISOString() } : {} ),
+    };
+
+    const { error: updError } = await supabase
+      .from("pulsador")
+      .update(updateFields)
+      .eq("id", data.id);
+
+    if (updError) console.error("[pulsar update]", updError);
+    else $hint.textContent = "⚠️ Ya has pulsado";
   });
-
-  // ---- Sonido agradable ----
-  function playBell() {
-    const ctx = new AudioContext();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-
-    osc.type = "sine";
-    osc.frequency.value = 880; // tono agradable agudo
-    gain.gain.setValueAtTime(0.15, ctx.currentTime); // volumen bajo
-
-    osc.connect(gain).connect(ctx.destination);
-    osc.start();
-    osc.stop(ctx.currentTime + 0.3); // corto
-  }
-
-  // ---- Timer ----
-  function startTimerFrom(ts){
-    stopTimer();
-    const start = new Date(ts).getTime();
-    timerInterval = setInterval(() => {
-      const diff = Date.now() - start;
-      // Aquí podrías actualizar un contador en pantalla si quieres
-    }, 1000);
-  }
-  function stopTimer(){
-    if (timerInterval) clearInterval(timerInterval);
-    timerInterval = null;
-  }
 
   // ---- Realtime ----
   function subscribeRealtime(){
     supabase.channel("pp-changes")
       .on("postgres_changes", { event:"*", schema:"public", table:"pulsador" }, async () => {
         await refreshTurno();
-        await refreshHint();
         await checkGate();
       })
       .subscribe();
@@ -198,10 +159,10 @@ export async function initParticipantes() {
   }
 
   // ---- Init ----
+  await ensureTimerReady();
   await resolveName();
   await checkGate();
   await refreshMarcador();
   await refreshTurno();
-  await refreshHint();
   subscribeRealtime();
 }

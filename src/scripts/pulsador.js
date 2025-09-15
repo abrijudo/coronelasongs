@@ -1,17 +1,6 @@
 import { supabase } from "/src/db/supabase.js";
 
-/**
- * Reglas:
- * - Turno = primer registro con activado=TRUE y fallado=FALSE (ordenado por created_at ASC).
- * - Mostrar botones Acierto/Fallado cuando haya turno; ocultarlos si no lo hay.
- * - Timer: inicia SOLO cuando empieza un turno o cambia de jugador.
- * - Fallado → pasa el jugador a lista de fallados (activado=TRUE, fallado=TRUE) y sigue el turno con el siguiente.
- * - Acierto → se resetea todo y timer se para.
- * - Reset → pone activado=FALSE y fallado=FALSE a todos.
- */
-
 export async function initPulsador() {
-  // ---- DOM ----
   const $listOn    = document.getElementById("listOn");
   const $listOff   = document.getElementById("listOff");
   const $listFail  = document.getElementById("listFail");
@@ -28,56 +17,22 @@ export async function initPulsador() {
   const $btnAcierto = document.getElementById("btnAcierto");
   const $btnFallado = document.getElementById("btnFallado");
 
-  // Timer DOM
-  const $timer    = document.getElementById("timer");
-  const $value    = document.getElementById("timer-value");
-  const $progress = document.querySelector(".timer__progress");
-
-  // ---- Estado local ----
-  let prevCurrent = null;
   let busy = false;
-  let intervalId = null;
 
-  // ---- Helpers ----
-  const show = (el) => el && el.classList.remove("hidden");
-  const hide = (el) => el && el.classList.add("hidden");
-
-  const CIRC = 2 * Math.PI * 54;
-  if ($progress) $progress.style.strokeDasharray = String(CIRC);
-
-  function paint(remaining, total) {
-    if ($value) $value.textContent = Math.max(0, remaining);
-    if ($progress) {
-      const offset = CIRC - (remaining / total) * CIRC;
-      $progress.style.strokeDashoffset = String(offset);
+  // --- Asegura que timer.js esté listo
+  let _timerReady = false;
+  async function ensureTimerReady() {
+    if (_timerReady) return true;
+    if (window.startTimer && window.stopTimer) { _timerReady = true; return true; }
+    try {
+      const mod = await import("./timer.js"); // ajusta la ruta si mueves los archivos
+      if (mod?.initTimer) mod.initTimer();
+      _timerReady = !!(window.startTimer && window.stopTimer);
+      return _timerReady;
+    } catch (e) {
+      console.error("[timer] No se pudo cargar timer.js", e);
+      return false;
     }
-  }
-
-  function stopTimer() {
-    if (intervalId) clearInterval(intervalId);
-    intervalId = null;
-    if ($timer) $timer.classList.add("hidden");
-    if ($value) $value.textContent = "17";
-  }
-
-  function startTimer(duration = 17) {
-    stopTimer();
-    if ($timer) $timer.classList.remove("hidden");
-
-    let remaining = duration;
-    const total = duration;
-    paint(remaining, total);
-
-    intervalId = setInterval(() => {
-      remaining -= 1;
-      paint(remaining, total);
-
-      if (remaining <= 0) {
-        clearInterval(intervalId);
-        intervalId = null;
-        if ($timer) $timer.classList.add("hidden");
-      }
-    }, 1000);
   }
 
   async function cambiarPuntosJugador(nombre, delta) {
@@ -128,7 +83,7 @@ export async function initPulsador() {
   async function cargarListas() {
     const { data, error } = await supabase
       .from("pulsador")
-      .select("id, usuario, activado, fallado, jugando, created_at")
+      .select("id, usuario, activado, fallado, jugando, turno_inicio, created_at")
       .eq("jugando", true)
       .order("created_at", { ascending: true });
 
@@ -159,21 +114,19 @@ export async function initPulsador() {
     $countFail.textContent = String(fail);
 
     const queue = (data || []).filter((r) => r.activado && !r.fallado);
-    const current = queue.length ? queue[0].usuario : null;
+    const currentRow = queue.length ? queue[0] : null;
+    const current = currentRow?.usuario || null;
 
     $turnName.textContent = current || "—";
 
-    if (current) show($resultBox);
-    else hide($resultBox);
-
-    if (current && current !== prevCurrent) {
-      startTimer(17);
+    await ensureTimerReady();
+    if (current && currentRow?.turno_inicio) {
+      window.startTimer(current, currentRow.turno_inicio);
+      $resultBox?.classList.remove("hidden");
+    } else {
+      window.stopTimer?.();
+      $resultBox?.classList.add("hidden");
     }
-    if (!current && prevCurrent) {
-      stopTimer();
-    }
-
-    prevCurrent = current;
   }
 
   // ---- Botones ----
@@ -184,10 +137,15 @@ export async function initPulsador() {
       if (!current || current === "—") return;
 
       await cambiarPuntosJugador(current, +1);
-      await supabase.from("pulsador").update({ activado: false, fallado: false }).not("id", "is", null);
 
-      stopTimer();
-      hide($resultBox);
+      await supabase.from("pulsador").update({
+        activado: false,
+        fallado: false,
+        turno_inicio: null
+      }).neq("id", 0); // fuerza actualizar todas las filas
+
+      window.stopTimer?.();
+      $resultBox?.classList.add("hidden");
       await cargarListas();
     } finally { busy = false; }
   });
@@ -199,21 +157,42 @@ export async function initPulsador() {
       if (!current || current === "—") return;
 
       await cambiarPuntosJugador(current, -1);
-      await supabase.from("pulsador").update({ fallado: true }).eq("usuario", current);
+
+      // El que falla pierde el turno
+      await supabase.from("pulsador")
+        .update({ fallado: true, turno_inicio: null })
+        .eq("usuario", current);
+
+      // Buscar siguiente en cola
+      const { data: next } = await supabase
+        .from("pulsador")
+        .select("id")
+        .eq("activado", true)
+        .eq("fallado", false)
+        .order("created_at", { ascending: true })
+        .limit(1);
+
+      if (next?.length) {
+        await supabase.from("pulsador")
+          .update({ turno_inicio: new Date(Date.now() + 17000).toISOString() })
+          .eq("id", next[0].id);
+      }
 
       await cargarListas();
-      const hayTurno = ($turnName.textContent.trim() || "—") !== "—";
-      if (hayTurno) startTimer(17);
-      else stopTimer();
     } finally { busy = false; }
   });
 
   $resetBtn?.addEventListener("click", async () => {
     if (busy) return; busy = true;
     try {
-      await supabase.from("pulsador").update({ activado: false, fallado: false }).not("id", "is", null);
-      stopTimer();
-      hide($resultBox);
+      await supabase.from("pulsador").update({
+        activado: false,
+        fallado: false,
+        turno_inicio: null
+      }).neq("id", 0); // actualiza todas
+
+      window.stopTimer?.();
+      $resultBox?.classList.add("hidden");
       await cargarListas();
     } finally { busy = false; }
   });
@@ -236,6 +215,7 @@ export async function initPulsador() {
   }
 
   // ---- Init ----
+  await ensureTimerReady();
   await Promise.all([cargarListas(), cargarMarcador()]);
   subRealtime();
 }
