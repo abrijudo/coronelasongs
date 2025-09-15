@@ -46,25 +46,44 @@ a:hover {
   padding: 0 20px;
 }
 
-/* Header */
+/* 🎨 Header especial azul oscuro con bordes dorados */
 .gallinero-header {
-  width: 100%;
-  height: 80px;
-  background-color: var(--primary-color);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 0 20px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-  margin-bottom: 2rem;
+  background: #0b1e3d; /* Azul oscuro */
+  padding: 20px;
+  text-align: center;
+  border: 4px solid #FFD700; /* Borde dorado */
+  border-radius: 12px;
+  box-shadow: 0 0 15px rgba(255, 215, 0, 0.4); /* Brillo dorado */
+  animation: gallinero-pulse 3s infinite alternate;
 }
+
 .gallinero-header h1 {
-  font-size: 2.2rem;
-  font-weight: 600;
-  color: var(--secondary-color);
-  text-shadow: 1px 1px 0 var(--accent-color);
+  color: #FFD700; /* Texto dorado */
+  font-size: 2.5rem;
+  margin: 0;
+  text-shadow: 0 0 8px rgba(255, 215, 0, 0.8);
   letter-spacing: 2px;
 }
+
+@keyframes gallinero-pulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 15px rgba(255, 215, 0, 0.4);
+  }
+  100% {
+    transform: scale(1.005); /* movimiento mínimo, casi imperceptible */
+    box-shadow: 0 0 5px rgba(255, 215, 0, 0.7); /* brillo un poco más fuerte */
+  }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .gallinero-header h1 {
+    font-size: 1.6rem;
+  }
+}
+
+
 
 /* Navigation */
 .nav-links {
