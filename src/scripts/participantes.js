@@ -38,7 +38,9 @@ export async function initParticipantes() {
   }
 
   async function checkGate(){
-    if (!myName) await resolveName();
+    // 🔥 siempre re-leemos el nombre
+    await resolveName();
+
     if (!myName) { showGate(); return; }
 
     const { data, error } = await supabase
@@ -47,7 +49,12 @@ export async function initParticipantes() {
       .eq("usuario", myName)
       .maybeSingle();
 
-    if (error) { console.error("[gate]", error); showGate(); return; }
+    if (error) {
+      console.error("[gate]", error);
+      showGate();
+      return;
+    }
+
     (data?.jugando) ? showApp() : showGate();
   }
 
@@ -90,7 +97,7 @@ export async function initParticipantes() {
 
     if ($turn) $turn.textContent = currentTurn || "—";
 
-    // Siempre re-evaluamos el timer en base a turno_inicio (por si entras tarde o refrescas)
+    // Siempre re-evaluamos el timer en base a turno_inicio
     await ensureTimerReady();
     if (actual?.turno_inicio) {
       window.startTimer(actual.usuario, actual.turno_inicio);
@@ -131,7 +138,6 @@ export async function initParticipantes() {
       activado: true,
       created_at: new Date().toISOString(),
       fallado: false,
-      // si NO hay turno activo → este jugador lo inicia poniendo hora fin = ahora + 17s
       ...( (!turnoActivo?.length) ? { turno_inicio: new Date(Date.now() + 17000).toISOString() } : {} ),
     };
 
@@ -155,6 +161,19 @@ export async function initParticipantes() {
 
     supabase.channel("pp-marcador")
       .on("postgres_changes", { event:"*", schema:"public", table:"marcador" }, refreshMarcador)
+      .subscribe();
+
+    // 👇 escuchar cambios en profiles (nombre de usuario)
+    supabase.channel("pp-profile")
+      .on("postgres_changes", { event:"UPDATE", schema:"public", table:"profiles" }, async (payload) => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (payload?.new?.id === user?.id) {
+          await resolveName();
+          await checkGate();
+          await refreshMarcador();
+          await refreshTurno();
+        }
+      })
       .subscribe();
   }
 

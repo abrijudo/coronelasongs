@@ -49,6 +49,46 @@
   </form>
 </div>
 
+<!-- Nuevo bloque para playlist -->
+<div class="card mt-4">
+  <h2 class="text-center mb-4">Insertar Playlist</h2>
+  <form id="playlist-form">
+    <div class="form-group">
+      <label for="playlist-url">URL de Playlist de Spotify:</label>
+      <input 
+        type="url" 
+        id="playlist-url" 
+        class="form-control" 
+        autocomplete="off" 
+        placeholder="https://open.spotify.com/playlist/..." 
+        required 
+      />
+    </div>
+
+    <div class="form-group">
+      <label for="playlist-tipo">Género:</label>
+      <input 
+        type="text" 
+        id="playlist-tipo" 
+        class="form-control" 
+        autocomplete="off" 
+        placeholder="Ej. Pop, Rock, Disney..." 
+        required 
+      />
+    </div>
+
+    <button type="submit" class="btn btn-block">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" 
+           viewBox="0 0 24 24" fill="none" stroke="currentColor" 
+           stroke-width="2" stroke-linecap="round" stroke-linejoin="round" 
+           class="icon">
+        <path d="M12 5v14M5 12h14"/>
+      </svg>
+      Insertar Playlist
+    </button>
+  </form>
+</div>
+
 <style>
   .btn-block { 
     display:flex; 
@@ -64,10 +104,9 @@
     border-color: var(--primary-color); 
     box-shadow: 0 0 0 .2rem rgba(0,5,71,.1); 
   }
+  .card.mt-4 { margin-top: 2rem; }
 </style>
 
 <script>
   import("../scripts/insertar-canciones.js").then(mod => mod.initInsertarCanciones());
 </script>
-
-
