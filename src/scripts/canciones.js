@@ -10,6 +10,7 @@ export function initCanciones() {
     nativeWarn.apply(console, args);
   };
 
+  // --- Helpers ---
   function extractSpotifyTrackId(url) {
     if (!url || typeof url !== "string") return null;
     const clean = url.trim();
@@ -22,6 +23,22 @@ export function initCanciones() {
   function normalizeSpotifyUrl(url) {
     const id = extractSpotifyTrackId(url);
     return id ? `https://open.spotify.com/track/${id}` : String(url || "").trim();
+  }
+
+  // 👇 Nueva función: asegura que siempre hay un token válido
+  async function fetchSpotifyToken() {
+    const res = await fetch("/api/spotify-token");
+    if (!res.ok) {
+      window.showSpotifyBanner?.("❌ Error obteniendo token de Spotify", "error");
+      return null;
+    }
+    const { token, error } = await res.json();
+    if (!token) {
+      window.showSpotifyBanner?.("❌ Tu sesión de Spotify ha caducado. Vuelve a iniciar sesión.", "error");
+      window.location.href = "/api/login";
+      return null;
+    }
+    return token;
   }
 
   let allSongs = [];
@@ -77,6 +94,11 @@ export function initCanciones() {
 
   async function loadTrack(i) {
     if (!playlist[i]) return;
+
+    // 🔄 Antes de poner la canción, revisamos token válido
+    const token = await fetchSpotifyToken();
+    if (!token) return;
+
     iframe.src = `https://open.spotify.com/embed/track/${playlist[i].id}?utm_source=generator`;
     currentIndex = i;
     syncButtons();
@@ -162,7 +184,6 @@ export function initCanciones() {
   selectEl?.addEventListener("change", () => {
     const filtro = selectEl.value || ALL;
     if (filtro === ALL) {
-      // 👇 Eliminar duplicados SOLO en "Todos"
       const seen = new Set();
       currentPool = allSongs.filter(song => {
         if (seen.has(song.url)) return false;

@@ -28,6 +28,21 @@ async function fetchSpotifyToken() {
   return token || null;
 }
 
+// 👇 función para mostrar un banner arriba
+function showBanner(msg, type = "success") {
+  let banner = document.getElementById("spotify-banner");
+  if (!banner) {
+    banner = document.createElement("div");
+    banner.id = "spotify-banner";
+    document.body.appendChild(banner);
+  }
+  banner.className = type; // success o error
+  banner.textContent = msg;
+
+  setTimeout(() => banner.remove(), 4000);
+}
+
+
 async function fetchPlaylistTracks(playlistId, token) {
   let offset = 0;
   const items = [];
@@ -35,13 +50,22 @@ async function fetchPlaylistTracks(playlistId, token) {
 
   while (true) {
     const url = `https://api.spotify.com/v1/playlists/${playlistId}/tracks?limit=100&offset=${offset}`;
-    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    let res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
 
-    // 👇 detectar caducidad del token
     if (res.status === 401) {
-      alert("❌ Tu sesión de Spotify ha caducado. Inicia sesión de nuevo.");
-      window.location.href = "/api/login"; // ajusta a tu ruta de login
-      return [];
+      // 👇 intentar renovar token
+      const refreshRes = await fetch("/api/spotify-token");
+      const refreshData = await refreshRes.json();
+
+      if (refreshData?.token) {
+        token = refreshData.token;
+        showBanner("🔄 Sesión de Spotify renovada automáticamente");
+        res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      } else {
+        showBanner("❌ Tu sesión de Spotify ha caducado. Inicia sesión de nuevo.", "error");
+        window.location.href = "/api/login";
+        return [];
+      }
     }
 
     if (!res.ok) throw new Error("Spotify API error");
@@ -138,7 +162,7 @@ export async function initInsertarCanciones() {
     const playlistId = match[1];
 
     try {
-      const token = await fetchSpotifyToken();
+      let token = await fetchSpotifyToken();
       if (!token) return alert("❌ No hay token de Spotify. Inicia sesión primero.");
 
       const tracks = await fetchPlaylistTracks(playlistId, token);
